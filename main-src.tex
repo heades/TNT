@@ -1,0 +1,342 @@
+\usepackage{amssymb,amsmath,amsthm}
+\usepackage{stmaryrd}
+\usepackage{todonotes}
+\usepackage{mathpartir}
+\usepackage{enumerate}
+\usepackage{hyperref}
+
+\usepackage[barr]{xy}
+\let\mto\to
+\let\to\rightarrow
+
+\usepackage{color}
+\usepackage{supertabular}
+\include{type-theory_inc}
+
+% Ott includes.
+\input{TNT-ott}
+
+\newcommand{\cat}[1]{\mathcal{#1}}
+\newcommand{\uar}[0]{\mathop{\uparrow}}
+\newcommand{\dar}[0]{\mathop{\downarrow}}
+\newcommand{\st}[1]{\mathsf{st}_{#1}}
+\newcommand{\id}[0]{\mathsf{id}}
+
+\title{Freedom of Speech is a Comonad}
+
+\author{Harley Eades III\\
+  Augusta University}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  ... 
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+
+The Trellys project was a large scale project to develop a general
+purpose dependently type functional programming language \cite{??}.
+The most important language design decision was to have the language
+fragmented into two parts: a programmatic fragment and a logical
+fragment.  The former is used to write general purpose programs, and
+the latter is used to verify the correctness of the programs written
+in the programmatic fragment.  This implies that there must be a means
+for the logical fragment to take programs of the programmatic fragment
+-- which we will call simply programs -- in as input to be able to
+write predicates and proofs about those programs, but this must be
+done so as to not compromise consistency of the logical fragment.
+Thus, it must be maintained that no logical program, which we will
+call proofs, actually runs a diverging program. This property is
+called \textbf{freedom of speech}, because the logical fragment has
+the ability to talk about the programmatic fragment without
+sacrificing its integrity.
+
+In this paper we approach this problem from a categorical
+perspective. Suppose we have a cartesian closed category, $\cat{L}$,
+and a cartesian closed category with fixpoints, $\cat{P}$.  It is
+well-known that $\cat{L}$ is a model of the simply-typed
+$\lambda$-calculus \cite{?}, and $\cat{P}$ is a model of the
+simply-typed $\lambda$-calculus with the $[[Y]]$ combinator \cite{?}.
+The category $\cat{L}$ will model our logical fragment, and $\cat{P}$
+our programmatic fragment.
+
+Now suppose we have a symmetric monoidal adjunction $\cat{P} : \uar
+\dashv \dar : \cat{L}$. We can think of this adjunction as a
+translation between the two fragments.  It is a well-known fact about
+adjunctions that the functor $\dar\uar : \cat{P} \to \cat{P}$ is a
+monad, and the functor $\uar\dar : \cat{L} \to \cat{L}$ is a comonad.
+The former treats termination as a monadic effect allowing the
+programmatic fragment to restrict itself to terminating programs, and
+the latter treats non-termination as a comonadic effect allowing
+proofs to take in as input potentially diverging programs.  Notice
+that the latter models freedom of speech as a comonad.  It can also be
+shown that we have a strong monad:
+\[
+\bfig
+\morphism<1000,0>[\uar\dar A \times \dar\uar B`\dar\uar(\uar\dar A \times B);\st{A,B}]
+\efig
+\]
+The previous strength can be defined using the fact that we have a
+symmetric monoidal adjunction.
+
+The first model of this kind is due to Benton \cite{??} who described
+a similar situation for linear logic where $\cat{L}$ is a model of
+linear logic, and $\cat{P}$ is a model of propositional logic, and
+hence, the comonand $! : \cat{L} \to \cat{L}$ treats non-linearity as
+a comonadic effect, but from the perspective of $\cat{L}$ linearity is
+a monadic effect.  Adjunction models like these can now be seen as
+beautiful models of effects \cite{POPL:2016}.
+
+\section{The Fragments and Their Semantics}
+\label{sec:the_fragments_and_their_semantics}
+
+\subsection{The Logical Fragment}
+\label{subsec:the_logical_fragment}
+\begin{definition}
+  \label{def:logical fragment}
+  The typing relation for the \textbf{logical fragment} is
+  defined by the following inference rules:
+  \begin{mathpar}
+    \scriptsize
+    \TNTdruleLXXAx{} \and
+    \TNTdruleLXXTrue{} \and
+    \TNTdruleLXXProd{} \and
+    \TNTdruleLXXProjOne{} \and
+    \TNTdruleLXXProjTwo{} \and
+    \TNTdruleLXXFun{} \and
+    \TNTdruleLXXApp{}
+  \end{mathpar}
+  Terms in context are defined by the following inference rules:
+  \begin{mathpar}
+    \scriptsize
+    \TNTdruleLEqXXAx{} \and
+    \TNTdruleLEqXXUnit{} \and
+    \TNTdruleLEqXXProjOne{} \and
+    \TNTdruleLEqXXProjTwo{} \and
+    \TNTdruleLEqXXEtaP{} \and
+    \TNTdruleLEqXXProjOneC{} \and
+    \TNTdruleLEqXXProjTwoC{} \and
+    \TNTdruleLEqXXPairC{} \and
+    \TNTdruleLEqXXBeta{} \and
+    \TNTdruleLEqXXEta{} \and
+    \TNTdruleLEqXXFunC{} \and
+    \TNTdruleLEqXXSubst{} \and
+    \TNTdruleLEqXXWeak{} \and
+    \TNTdruleLEqXXEx{} \and
+    \TNTdruleLEqXXRefl{} \and
+    \TNTdruleLEqXXSym{} \and
+    \TNTdruleLEqXXTrans{}
+  \end{mathpar}
+\end{definition}
+
+% subsection the_logical_fragment (end)
+
+\subsection{The Programmatic Fragment}
+\label{subsec:the_programmatic_fragment}
+
+\begin{definition}
+  \label{def:programmatic fragment}
+  The typing relation for the \textbf{programmatic fragment} is
+  defined by the following inference rules:
+  \begin{mathpar}
+    \scriptsize
+    \TNTdrulePXXAx{} \and
+    \TNTdrulePXXUnit{} \and
+    \TNTdrulePXXZero{} \and
+    \TNTdrulePXXSuc{} \and
+    \TNTdrulePXXFix{} \and
+    \TNTdrulePXXProd{} \and
+    \TNTdrulePXXProjOne{} \and
+    \TNTdrulePXXProjTwo{} \and
+    \TNTdrulePXXFun{} \and
+    \TNTdrulePXXApp{} \and
+    \TNTdrulePXXCase{}
+  \end{mathpar}
+  Terms in context are defined by the following inference rules:
+  \begin{mathpar}
+    \scriptsize
+    \TNTdrulePEqXXAx{} \and
+    \TNTdrulePEqXXUnit{} \and
+    \TNTdrulePEqXXProjOne{} \and
+    \TNTdrulePEqXXProjTwo{} \and
+    \TNTdrulePEqXXEtaP{} \and
+    \TNTdrulePEqXXProjOneC{} \and
+    \TNTdrulePEqXXProjTwoC{} \and
+    \TNTdrulePEqXXPairC{} \and
+    \TNTdrulePEqXXBeta{} \and
+    \TNTdrulePEqXXEta{} \and
+    \TNTdrulePEqXXFunC{} \and
+    \TNTdrulePEqXXFix{} \and
+    \TNTdrulePEqXXFixC{} \and
+    \TNTdrulePEqXXSuc{} \and
+    \TNTdrulePEqXXCaseB{} \and
+    \TNTdrulePEqXXCaseS{} \and
+    \TNTdrulePEqXXCaseC{} \and
+    \TNTdrulePEqXXSubst{} \and
+    \TNTdrulePEqXXWeak{} \and
+    \TNTdrulePEqXXEx{} \and
+    \TNTdrulePEqXXRefl{} \and
+    \TNTdrulePEqXXSym{} \and
+    \TNTdrulePEqXXTrans{} 
+  \end{mathpar}
+\end{definition}
+
+\begin{example}
+  \label{ex:programs-in-P}
+  In this example we give a few examples of programs that cannot be
+  written in the logical fragment:
+  \begin{itemize}
+  \item[1.] The following program diverges:
+    \[
+    [[ fix suc ]]
+    \]
+    In fact,
+    \[ [[fix suc]] \redto [[suc (fix suc)]] \redto [[suc (suc
+        (fix suc))]] \redto \cdots \]
+
+  \item[2.] The following program defines natural number addition:
+    \[
+    [[fix (\r.\n1.\n2.case n2 {
+      0 -> n1,
+      suc x -> suc (r n1 x)
+      })]]
+    \]
+  \end{itemize}
+\end{example}
+
+The most interesting part of the programmatic fragment is the way in
+which natural numbers are represented.  The mixture of $[[fix]]$,
+which is the Y-combinator, and $\mathsf{case}$ provides the calculus
+with the ability to write both terminating and non-terminating
+programs on the natural numbers.
+
+The question now becomes how do we model $[[fix]]$ and $\mathsf{case}$
+categorically?  To model $[[fix]]$ we endow a cartesian closed
+category with fixpoints \cite{?}.
+
+\begin{definition}
+  \label{def:fixpoints-in-CCC}
+  Suppose $\cat{C}$ is a cartesian closed category.  Then we say
+  $\cat{C}$ \textbf{has fixpoints} if for any object $X$ of $\cat{C}$,
+  there is a morphism $[[fix]]_X : (X \to X) \mto X$ such that the
+  following diagram commutes:
+  \[
+  \bfig
+  \qtriangle|amm|<1200,500>[
+    X \to X`
+    (X \to X) \times X`
+    X;
+    \langle \id_{X \to X}, [[fix]]_X \rangle`
+    [[fix]]_X`
+    \mathsf{app}_{X,X}]
+  \efig
+  \]
+\end{definition}
+\noindent
+The commuting diagram in the above definition models the reduction
+rule for $[[fix]]$, and so it is pretty easy to see that this
+definition will allow us to model $[[fix]]$ categorically.
+
+Perhaps more interestingly we use a novel approach to modeling
+natural numbers including $\mathsf{case}$.  
+\begin{definition}
+  \label{def:SNNO}
+  Suppose $\cat{C}$ is a cartesian closed category.  A
+  \textbf{Scott natural number object (SNNO)} is an object $[[Nat]]$ of $\cat{C}$ and
+  morphisms $\mathsf{z} : 1 \mto [[Nat]]$ and $[[suc]] : [[Nat]]  \mto [[Nat]]$ of $\cat{C}$,
+  such that, for any morphisms $f : 1 \mto X$ and $g : [[X x Nat]] \mto X$ of $\cat{C}$ there is a unique morphism
+  $u_X : [[Nat]] \mto X$ making the following diagrams commute:
+       \[
+       \begin{array}{lll}
+         \bfig
+         \qtriangle|amm|<1000,500>[
+           1`
+           [[Nat]]`
+           X;
+           \mathsf{z}`
+           f`
+           u_X]
+         \efig
+         & \quad & 
+         \bfig
+         \square|amma|<1000,500>[
+           [[Nat]]`
+           [[Nat]]`
+           [[X x Nat]]`
+           B;
+           [[suc]]`
+           \langle u, \id_{[[Nat]]} \rangle`
+           u_X`
+           g ]
+         \efig
+       \end{array}
+       \]
+       Informally, the two diagrams essentially assert that we can
+       define $u$ as follows:
+       \begin{center}
+         \begin{math}
+           \begin{array}{rll}
+             u\,\mathsf{z} & = & f\\
+             u\,[[(suc x)]] & = &  g\,(u\,x)\,x
+           \end{array}
+         \end{math}
+       \end{center}
+\end{definition}
+\noindent This formalization of natural numbers is inspired by the
+definition of Scott Numerals \cite{??} where the notion of a case
+distinction is built into the encoding. SNNOs differ from the more
+traditional natural number objects \cite{??} in the type of $g : [[X x
+    Nat]] \mto X$, which is traditionally, $g : X \mto X$, and hence,
+$g$ will only receive as input the recursive call.  This definition is
+too restrictive for the situation here, because to model
+$\mathsf{case}$ we need the ability to obtain the predecessor.
+
+We now have all the necessary structure to describe the model of the
+programmatic fragment.
+\begin{definition}
+  \label{def:P-model}
+  A model of the programmatic fragment, called a
+  \textbf{$\cat{P}$-model}, consists of a cartesian closed category,
+  $\cat{C}$, with fixpoints and a SNNO.
+\end{definition}
+\noindent
+Finally, we show the following.
+\begin{theorem}[Soundness]
+  \label{theorem:P-soundness}
+  Suppose $\cat{P}$ is a $\cat{P}$-model, and for each type $[[X]]$
+  there is an object $\interp{[[X]]}$ of $\cat{C}$.
+  If $[[G |-P t = t' : X]]$, then there exists morphisms
+  $\interp{[[t]]} : \interp{[[G]]} \mto \interp{[[X]]}$
+  and $\interp{[[t']]} : \interp{[[G]]} \mto \interp{[[X]]}$ of $\cat{P}$, such that,
+  $\interp{[[t]]} = \interp{[[t']]}$.
+\end{theorem}
+
+
+% subsection the_programmatic_fragment (end)
+% section the_fragments_and_their_semantics (end)
+
+
+\section{Related Work}
+\label{sec:related_work}
+\todo[inline]{Write}
+% section related_work (end)
+
+\section{Conclusion}
+\label{sec:conclusion}
+\todo[inline]{Write}
+% section conclusion (end)
+
+\bibliographystyle{plain}
+\bibliography{ref}
+
+\nocite{*}
+\appendix
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: t
+%%% End: 
