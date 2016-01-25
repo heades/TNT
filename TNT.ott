@@ -30,9 +30,9 @@ t :: 'Terms_' ::=
   | suc         ::   :: Succ
   | ( t1 , t2 ) ::   :: Pairs
   | proj1 t     ::   :: Proj1
-  {{tex \mathsf{proj}_1\,t }}
+  {{tex \mathsf{proj}_1\,[[t]] }}
   | proj2 t     ::   :: Proj2
-  {{tex \mathsf{proj}_2\,t }}
+  {{tex \mathsf{proj}_2\,[[t]] }}
   | \ x . t ::   :: Fun
   {{tex \lambda [[x]].[[t]] }}
   | fix           ::   :: YComb
@@ -136,11 +136,11 @@ by
 
  G |-L t = t' : A x B
  -------------------------------- :: Proj1C
- G |-L proj1 t = proj1 t' : A x B
+ G |-L proj1 t = proj1 t' : A
 
  G |-L t = t' : A x B
  -------------------------------- :: Proj2C
- G |-L proj2 t = proj2 t' : A x B
+ G |-L proj2 t = proj2 t' : B
 
  G |-L t1 = t1' : A &&  G |-L t2 = t2' : B
  ----------------------------------------- :: PairC
@@ -290,15 +290,14 @@ by
  -------------------------- :: Suc
  G |-P suc t = suc t' : Nat
 
- G |-P t = 0 : Nat
  G |-P t1 : X && G, x : Nat |-P t2 : X
  -------------------------------------------- :: CaseB
- G |-P case t {0 -> t1, suc x -> t2} = t1 : X
+ G |-P case 0 {0 -> t1, suc x -> t2} = t1 : X
 
- G |-P t = suc n : Nat
+ G |-P n : Nat
  G |-P t1 : X && G, x : Nat |-P t2 : X
- ------------------------------------------------- :: CaseS
- G |-P case t {0 -> t1, suc x -> t2} = [n/x]t2 : X
+ ------------------------------------------------------- :: CaseS
+ G |-P case (suc n) {0 -> t1, suc x -> t2} = [n/x]t2 : X
 
  G |-P t1 = t1' : X
  G, x : Nat |-P t2 = t2' : X && G |-P t = t' : Nat
