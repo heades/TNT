@@ -1,7 +1,5 @@
-Freedom of Speech is a Comonad
-==============================
+Adjoint Programming: Termination as an Effect
+=============================================
 
-This is the start of a new paper showing that freedom of speech -- in
-the since of the Trellys project -- is a comonad.  Furthermore, we can
-show that termination can be treated as an effect just as easily as
-non-termination.
+This is a note on using adjunctions to model effects in a typed
+functional programming language.  
