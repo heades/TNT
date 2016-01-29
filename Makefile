@@ -12,6 +12,9 @@ all: pdf
 	$(SKIM) $(CURDIR)/main.pdf
   endif
 
+ipad : all
+	cp main.pdf ~/Dropbox/AdjointProgDraft.pdf
+
 pdf : main.pdf
 
 pdf-report : report.pdf

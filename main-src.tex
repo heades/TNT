@@ -20,6 +20,8 @@
 \newcommand{\cat}[1]{\mathcal{#1}}
 \newcommand{\uar}[0]{\mathop{\uparrow}}
 \newcommand{\dar}[0]{\mathop{\downarrow}}
+\newcommand{\mst}[1]{\mathsf{m\text{-}st}_{#1}}
+\newcommand{\cmst}[1]{\mathsf{cm\text{-}st}_{#1}}
 \newcommand{\st}[1]{\mathsf{st}_{#1}}
 \newcommand{\case}[0]{\mathsf{case}}
 \newcommand{\cur}[1]{\mathsf{cur}(#1)}
@@ -59,7 +61,7 @@ modal logic.  However, is it worthwhile to adopt adjunctions directly
 into a programming language?  If they are adopted, then how do we
 program with them?  In this paper we construct a typed
 $\lambda$-calculus extended with an adjoint pair of functors with a
-focus on programming.  Instead of working in completely generality we
+focus on programming.  Instead of working in complete generality we
 instead focus on a single concrete, but interesting, example.
 
 The Trellys Project was a large scale project to develop a general
@@ -88,8 +90,8 @@ simply-typed $\lambda$-calculus with the $[[Y]]$ combinator \cite{?}.
 The category $\cat{L}$ will model our logical fragment, and $\cat{P}$
 our programmatic fragment.
 
-Now suppose we have a symmetric monoidal adjunction $\cat{P} : T
-\dashv D : \cat{L}$. We can think of this adjunction as a translation
+Now suppose we have a symmetric monoidal adjunction $\cat{L} : T
+\dashv D : \cat{P}$. We can think of this adjunction as a translation
 between the two fragments.  It is a well-known fact about adjunctions
 that the functor $\dar = DT : \cat{P} \to \cat{P}$ is a comonad, and
 the functor $\uar = TD : \cat{L} \to \cat{L}$ is a monad.  The former
@@ -101,7 +103,7 @@ speech as an adjoint situation.  It can also be shown that we have a
 strong monad:
 \[
 \bfig
-\morphism<1000,0>[A \times \uar B`\uar(A \times B);\st{A,B}]
+\morphism<1000,0>[A \times \uar B`\uar(A \times B);\mst{A,B}]
 \efig
 \]
 The previous strength can be defined using the fact that we have a
@@ -1257,9 +1259,185 @@ limits.
   it is strong.
 \end{proof}
 \noindent
-The remainder of the paper will deal specifically with product
-functors due to the last result.
-% subsection symmetric_monoidal_adjunctions_on_cartesian_categories (end)
+The remainder of the paper will will make heavy use of product
+functors due to the last result.  To make the exposition more clear we
+will call symmetric monoidal natural transformations between product
+functors \textbf{product natural transformations} and symmetric
+monoidal adjunctions \textbf{product adjunctions}.
+
+Following Moggi's \cite{?} lead we must be sure that the symmetric
+monoidal monad arising from the symmetric monoidal adjunction is
+strong for it to be programmaticly useful.  However, monadic strength
+is part of the monoidal structure.
+\begin{lemma}[Monadic Strength]
+  \label{lemma:monadic/comonadic_strength}
+  Suppose $(T,\eta,\mu)$ is a monoidal monad on a monoidal category
+  $\cat{C}$.  Then the strength maps exists:
+  \[
+  \begin{array}{lll}
+    \mst{A,B} : A \otimes TB \mto T (A \otimes B)\\    
+  \end{array}
+  \]
+  Then the following diagrams must commute:
+  \[
+  \begin{array}{cccccccccc}
+    \bfig
+    \square|mmaa|/`->``->/<1200,500>[
+      (A \otimes B) \otimes TC``
+      A \otimes (B \otimes TC)`
+      A \otimes T(B \otimes C);`
+      \alpha_{A,B,TC}``
+      \id_A \otimes \st{B,C}]
+
+    \square(1200,0)|mmma|/``->`->/<1200,500>[`
+      T((A \otimes B) \otimes C)`
+      A \otimes T(B \otimes C)`
+      T(A \otimes (B \otimes C));``
+      T\alpha_{A,B,C}`
+      \st{A,T(B \otimes C)}]
+
+    \morphism(0,500)<2400,0>[
+      (A \otimes B) \otimes TC`
+      T((A \otimes B) \otimes C);
+      \st{A \otimes B,C}]
+    \efig\\
+    \\
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      I \otimes TA`
+      T(I \otimes A)`
+      TA;
+      \st{I,A}`
+      \rho_A`
+      T\rho_A]
+    \efig
+  \end{array}
+  \]
+  In addition, the following diagrams must also commute:
+  \begin{center}
+    \begin{mathpar}
+      \bfig
+        \square|mmaa|/`->``->/<1200,500>[
+          A \otimes T^2 B``
+          T(A \otimes TB)`
+          T^2(A \otimes B);`
+          \mst{A,TB}``
+          T\mst{A,B}]
+        
+        \square(1000,0)|mmma|/``->`->/<1000,500>[`
+      A \otimes TB`
+      T^2(A \otimes B)`
+      T(A \otimes B);``
+      \mst{A,B}`
+      \mu_{A \otimes B}]
+
+    \morphism(-400,500)<2200,0>[
+      A \otimes T^2 B`
+      A \otimes TB;
+      \id_{A} \otimes \mu_B]
+    \efig
+    \and
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      A \otimes B`
+      A \otimes TB`
+      T(A \otimes B);
+      \id_A \otimes \eta_B`
+      \eta_{A \times B}`
+      \mst{A,B}]    
+    \efig
+    \end{mathpar}
+  \end{center}
+\end{lemma}
+\begin{proof}
+  The strength map is defined as follows:
+  \[
+  \begin{array}{lll}
+    \mst{A,B} = (\eta_{A} \otimes \id_{TB});\m{A,B} : A \otimes TB \mto T(A \otimes B)\\    
+  \end{array}
+  \]
+  where $\m{A,B} : TA \otimes TB \mto T(A \otimes B)$ is the natural
+  transformation arising from the fact that $T$ is a monoidal
+  endofunctor on $\cat{C}$.
+
+  The first two diagrams are straightforward to prove using the
+  monoidal structure.  We give explicit proofs of the final two
+  diagrams.
+
+  \begin{itemize}
+  \item[] Case 1. Monadic Join and Strength:
+    \[
+    \bfig
+        \square|mmaa|/`->``->/<1200,500>[
+          A \otimes T^2 B``
+          T(A \otimes TB)`
+          T^2(A \otimes B);`
+          \mst{A,TB}``
+          T\mst{A,B}]
+        
+    \square(1200,0)|mmma|/``->`->/<1200,500>[`
+      A \otimes TB`
+      T^2(A \otimes B)`
+      T(A \otimes B);``
+      \mst{A,B}`
+      \mu_{A \otimes B}]
+
+    \morphism(0,500)<2400,0>[
+      A \otimes T^2 B`
+      A \otimes TB;
+      \id_{A} \otimes \mu_B]
+    \efig
+    \]          
+
+  \item[] Case 2. Monadic Unit and Strength:
+    \[
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      A \otimes B`
+      A \otimes TB`
+      T(A \otimes B);
+      \id_A \otimes \eta_B`
+      \eta_{A \times B}`
+      \mst{A,B}]    
+    \efig
+    \]
+    
+  \end{itemize}
+
+\end{proof}
+Brookes and Van Stone \cite{?} define comonadic strength similarly to
+the monadic strength above, $\cmst{A,B} : A \otimes SB \mto S(A
+\otimes B)$ given a monoidal comonad $(S,\varepsilon,\delta)$, but
+this is not constructible from the monoidal structure like monadic
+strength, because we have no means of injecting $A$ into the comonad.
+Just as there is no way out of a monad, there is no way into a
+comonad. So if comonadic strength is necessary it will need to be
+taken as additional structure.
+% subsection symmetric_monoidal_adjunctions_on_cartesian_categories
+% (end)
+
+\subsection{TNT Model}
+\label{subsec:tnt_model}
+We have finally laid out everything we need to define the model of the
+theory we will be programming in.
+\begin{definition}
+  \label{def:TNT-model}
+  A \textbf{termination/non-termination adjoint model (TNT model)} is
+  a symmetric monoidal adjunction $\cat{L} : T \vdash D : \cat{P}$
+  between a $\cat{P}$-model, $\cat{P}$, and a cartesian closed
+  category $\cat{L}$.  Thus, we know the following:
+  \begin{itemize}
+  \item[i.] $\cat{P}$ is a cartesian closed category with fixpoints and a SNNO,
+  \item[ii.] $(D,\m{})$ and $(T, \n{})$ are product functors,
+  \item[iii.] $\dar = TD : \cat{P} \to \cat{P}$ is a symmetric monoidal
+    comonad, and
+  \item[iv.] $\uar = DT : \cat{L} \to \cat{L}$ is a symmetric monoidal
+    monad.
+  \end{itemize}
+\end{definition}
+
+% subsection tnt_model (end)
+
 % section a_termination/non-termination_adjoint_model (end)
 
 
