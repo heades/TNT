@@ -1,14 +1,1328 @@
 \documentclass{article}
 
-\usepackage{version} 
+\usepackage{amssymb,amsmath,amsthm}
+\usepackage{stmaryrd}
+\usepackage{todonotes}
+\usepackage{mathpartir}
+\usepackage{enumerate}
+\usepackage{hyperref}
+\usepackage{cmll}
 
-\includeversion{paper}
-\excludeversion{report}
-\input{main-src-output}
+\usepackage[barr]{xy}
+\let\mto\to
+\let\to\rightarrow
 
-\end{document}
+\usepackage{color}
+\usepackage{supertabular}
+\include{type-theory_inc}
+
+% Ott includes.
+\input{TNT-ott}
+
+\newcommand{\cat}[1]{\mathcal{#1}}
+\newcommand{\uar}[0]{\mathop{\uparrow}}
+\newcommand{\dar}[0]{\mathop{\downarrow}}
+\newcommand{\mst}[1]{\mathsf{m\text{-}st}_{#1}}
+\newcommand{\cmst}[1]{\mathsf{cm\text{-}st}_{#1}}
+\newcommand{\st}[1]{\mathsf{st}_{#1}}
+\newcommand{\case}[0]{\mathsf{case}}
+\newcommand{\cur}[1]{\mathsf{cur}(#1)}
+\newcommand{\app}[0]{\mathsf{app}}
+\newcommand{\id}[0]{\mathsf{id}}
+\newcommand{\ifrName}[1]{#1}
+\newcommand{\Hom}[2]{\mathsf{Hom}_{#1}(#2)}
+\let\t\relax
+\newcommand{\t}[0]{\mathsf{t}}
+\newcommand{\m}[1]{\mathsf{m}_{#1}}
+\newcommand{\n}[1]{\mathsf{n}_{#1}}
+\newcommand{\p}[1]{\mathsf{p}_{#1}}
+\newcommand{\q}[1]{\mathsf{q}_{#1}}
+\newcommand{\limp}[0]{\multimap}
+
+\title{Adjoint Programming: Termination as an Effect}
+
+\author{Harley Eades III\\
+  Augusta University}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  ... 
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+
+It is a well-known fact about adjunctions that they induce a
+monoad/comonad pair on some category.  Recently, adjunctions have been
+proposed as an elegant model for resources and effects \cite{??}.
+Even more recently, they have been proposed as a model of constructive
+modal logic.  However, is it worthwhile to adopt adjunctions directly
+into a programming language?  If they are adopted, then how do we
+program with them?  In this paper we construct a typed
+$\lambda$-calculus extended with an adjoint pair of functors with a
+focus on programming.  Instead of working in complete generality we
+instead focus on a single concrete, but interesting, example.
+
+The Trellys Project was a large scale project to develop a general
+purpose dependently type functional programming language \cite{??}.
+The most important language design decision was to have the language
+fragmented into two parts: a programmatic fragment and a logical
+fragment.  The former is used to write general purpose programs, and
+the latter is used to verify the correctness of the programs written
+in the programmatic fragment.  This implies that there must be a means
+for the logical fragment to take programs of the programmatic fragment
+-- which we will call simply programs -- in as input to be able to
+write predicates and proofs about those programs, but this must be
+done so as to not compromise consistency of the logical fragment.  On
+the other side of the coin the programmatic fragment should have the
+ability to construct programs using the logical fragment.  This
+property is called \textbf{freedom of speech}, because both fragments
+have the ability to talk about each other without sacrificing their
+integrity.
+
+The running example of this paper is to approach this problem from a
+categorical perspective. Suppose we have a cartesian closed category,
+$\cat{L}$, and a cartesian closed category with fixpoints, $\cat{P}$.
+It is well-known that $\cat{L}$ is a model of the simply-typed
+$\lambda$-calculus \cite{?}, and $\cat{P}$ is a model of the
+simply-typed $\lambda$-calculus with the $[[Y]]$ combinator \cite{?}.
+The category $\cat{L}$ will model our logical fragment, and $\cat{P}$
+our programmatic fragment.
+
+Now suppose we have a symmetric monoidal adjunction $\cat{P} : D
+\dashv T : \cat{L}$. We can think of this adjunction as a translation
+between the two fragments.  It is a well-known fact about adjunctions
+that the functor $\uar = TD : \cat{P} \to \cat{P}$ is a monad, and the
+functor $\dar = DT : \cat{L} \to \cat{L}$ is a comonad.  The former
+treats non-termination as a comonadic effect allowing the logical
+fragment to take in non-terminating inputs, and the latter treats
+termination as a monadic effect allowing the programmatic fragment to
+restrict itself terminating programs.  Thus, we can see freedom of
+speech as an adjoint situation.  It can also be shown that we have a
+strong monad:
+\[
+\bfig
+\morphism<1000,0>[A \times \uar B`\uar(A \times B);\mst{A,B}]
+\efig
+\]
+The previous strength can be defined using the fact that we have a
+symmetric monoidal adjunction.
+
+One application where this is useful is in programming languages such
+as Haskell where programmers by default program in potentially
+diverging setting.  However, to gain assurances it is often preferred
+to be able to pick and choose which programs one would want to be
+terminating, and have it enforced by the type checker.  A termination
+monad would allow the programmer to develop their program under the
+monad to insure termination.
+
+We will construct typed $\lambda$-calculi corresponding to both
+$\cat{L}$ and $\cat{P}$ respectively.  Then we will bring these two
+calculi together through a syntactic adjunction.  Then we will
+consider various programmatic questions.  For example, every program
+of type $\dar X$ should terminate, but proofs of type $\uar A$ should
+be allowed to diverge.  In addition to these syntactic questions we
+discuss novel contributions of these adjoint categorical models.
+
+\section{The Fragments and Their Semantics}
+\label{sec:the_fragments_and_their_semantics}
+
+We first must define the two fragments and give their semantics.  The
+logic fragment will be kept simple and amounts to the simply-typed
+$\lambda$-calculus, but the programmatic fragment will be slightly
+more interesting.  Since we are interested in programming it will
+contain the natural numbers, with a natural number eliminator in the
+form of a case analysis, and the Y-combinator.  Each of the theories
+will be presented using the style of Crole \cite{??}.
+
+\subsection{The Logical Fragment}
+\label{subsec:the_logical_fragment}
+
+The logical fragment is defined in Figure~\ref{fig:log-type-rel} and
+Figure~\ref{fig:log-eq}.
+\begin{figure}
+  \begin{mathpar}
+    \scriptsize
+    \TNTdruleLXXAx{} \and
+    \TNTdruleLXXTrue{} \and
+    \TNTdruleLXXProd{} \and
+    \TNTdruleLXXProjOne{} \and
+    \TNTdruleLXXProjTwo{} \and
+    \TNTdruleLXXFun{} \and
+    \TNTdruleLXXApp{}
+  \end{mathpar}
+  \caption{The Logical Fragment: Typing Relation}
+  \label{fig:log-type-rel}
+\end{figure}
+\begin{figure}
+  \begin{mathpar}
+    \scriptsize
+    \TNTdruleLEqXXAx{} \and
+    \TNTdruleLEqXXUnit{} \and
+    \TNTdruleLEqXXProjOne{} \and
+    \TNTdruleLEqXXProjTwo{} \and
+    \TNTdruleLEqXXEtaP{} \and
+    \TNTdruleLEqXXProjOneC{} \and
+    \TNTdruleLEqXXProjTwoC{} \and
+    \TNTdruleLEqXXPairC{} \and
+    \TNTdruleLEqXXBeta{} \and
+    \TNTdruleLEqXXEta{} \and
+    \TNTdruleLEqXXFunC{} \and
+    \TNTdruleLEqXXSubst{} \and
+    \TNTdruleLEqXXWeak{} \and
+    \TNTdruleLEqXXEx{} \and
+    \TNTdruleLEqXXRefl{} \and
+    \TNTdruleLEqXXSym{} \and
+    \TNTdruleLEqXXTrans{}
+  \end{mathpar}
+  \caption{The Logical Fragment: Equality}
+  \label{fig:log-eq}
+\end{figure}
+The following is a well-known fact \cite{Crole}.
+\begin{lemma}
+  \label{lemma:CCC-models-L}
+  The logical fragment has a sound and complete interpretation into
+  cartesian closed categories.
+\end{lemma}
+% subsection the_logical_fragment (end)
+
+\subsection{The Programmatic Fragment}
+\label{subsec:the_programmatic_fragment}
+The programmatic fragment is a bit more interesting, and corresponds
+to the simply-typed $\lambda$-calculus with natural numbers and the
+Y-combinator.  The typing relation is defined in Figure~\ref{fig:prog-typing-rel}, and the terms-in-context inference rules are defined in Figure~\ref{fig:prog-eq}.
+\begin{figure}
+  \begin{mathpar}
+    \scriptsize
+    \TNTdrulePXXAx{} \and
+    \TNTdrulePXXUnit{} \and
+    \TNTdrulePXXZero{} \and
+    \TNTdrulePXXSuc{} \and
+    \TNTdrulePXXFix{} \and
+    \TNTdrulePXXProd{} \and
+    \TNTdrulePXXProjOne{} \and
+    \TNTdrulePXXProjTwo{} \and
+    \TNTdrulePXXFun{} \and
+    \TNTdrulePXXApp{} \and
+    \TNTdrulePXXCase{}
+  \end{mathpar}
+  \caption{Programmatic Fragment: Typing Relation}
+  \label{fig:prog-typing-rel}
+\end{figure}
+\begin{figure}
+  \begin{mathpar}
+    \scriptsize
+    \TNTdrulePEqXXAx{} \and
+    \TNTdrulePEqXXUnit{} \and
+    \TNTdrulePEqXXProjOne{} \and
+    \TNTdrulePEqXXProjTwo{} \and
+    \TNTdrulePEqXXEtaP{} \and
+    \TNTdrulePEqXXProjOneC{} \and
+    \TNTdrulePEqXXProjTwoC{} \and
+    \TNTdrulePEqXXPairC{} \and
+    \TNTdrulePEqXXBeta{} \and
+    \TNTdrulePEqXXEta{} \and
+    \TNTdrulePEqXXFunC{} \and
+    \TNTdrulePEqXXFix{} \and
+    \TNTdrulePEqXXFixC{} \and
+    \TNTdrulePEqXXSuc{} \and
+    \TNTdrulePEqXXCaseB{} \and
+    \TNTdrulePEqXXCaseS{} \and
+    \TNTdrulePEqXXCaseC{} \and
+    \TNTdrulePEqXXSubst{} \and
+    \TNTdrulePEqXXWeak{} \and
+    \TNTdrulePEqXXEx{} \and
+    \TNTdrulePEqXXRefl{} \and
+    \TNTdrulePEqXXSym{} \and
+    \TNTdrulePEqXXTrans{} 
+  \end{mathpar}
+  \caption{Programmatic Fragment: Equality}
+  \label{fig:prog-eq}
+\end{figure}
+The natural number eliminator, $\mathsf{case}$, can be mixed with the
+Y-combinator to write generally recursive programs on the natural
+numbers.  For example, the following defines natural number addition:
+\begin{center}
+  \small
+  \begin{math}
+    [[fix (\r:Nat -> Nat -> Nat.\n1:Nat.\n2:Nat.case n2 {
+          0 -> n1,
+          suc x -> suc (r n1 x)
+        })]]
+  \end{math}
+\end{center}
+
+The question now becomes how do we model $[[fix]]$ and $\mathsf{case}$
+categorically?  To model $[[fix]]$ we endow a cartesian closed
+category with fixpoints \cite{?}.
+
+\begin{definition}
+  \label{def:fixpoints-in-CCC}
+  Suppose $\cat{C}$ is a cartesian closed category.  Then we say
+  $\cat{C}$ \textbf{has fixpoints} if for any object $X$ of $\cat{C}$,
+  there is a morphism $[[fix]]_X : (X \to X) \mto X$ such that the
+  following diagram commutes:
+  \[
+  \bfig
+  \qtriangle|amm|<1200,500>[
+    X \to X`
+    (X \to X) \times X`
+    X;
+    \langle \id_{X \to X}, [[fix]]_X \rangle`
+    [[fix]]_X`
+    \mathsf{app}_{X,X}]
+  \efig
+  \]
+\end{definition}
+\noindent
+The commuting diagram in the above definition models the reduction
+rule for $[[fix]]$, and so it is pretty easy to see that this
+definition will allow us to model $[[fix]]$ categorically.
+
+Perhaps more interestingly we use a novel approach to modeling
+natural numbers with their eliminator.
+\begin{definition}
+  \label{def:SNNO}
+  Suppose $\cat{C}$ is a cartesian closed category.  A
+  \textbf{Scott natural number object (SNNO)} is an object $[[Nat]]$ of $\cat{C}$ and
+  morphisms $\mathsf{z} : 1 \mto [[Nat]]$ and $[[suc]] : [[Nat]]  \mto [[Nat]]$ of $\cat{C}$,
+  such that, for any morphisms $f : [[Y]] \mto X$ and $g : [[Y x Nat]] \mto X$ of $\cat{C}$ there is a unique morphism
+  $\case_X : [[Y x Nat]] \mto X$ making the following diagrams commute:
+       \[
+       \begin{array}{lll}
+         \bfig
+         \qtriangle|amm|<1000,500>[
+           [[Y x Nat]]`
+           [[Y x Nat]]`
+           X;
+           \id_Y \times \mathsf{z}`
+           \pi_1;f`
+           \case_X]
+
+         \ptriangle(1000,0)|amm|/<-`->`->/<1000,500>[
+           [[Y x Nat]]`
+           [[Y x Nat]]`
+           X;
+           \id_Y \times [[suc]]`
+           \case_X`
+           g ]
+         \efig                               
+       \end{array}
+       \]
+       Informally, the two diagrams essentially assert that we can
+       define $u$ as follows:
+       \begin{center}
+         \begin{math}
+           \begin{array}{rll}
+             u\,y\,0 & = & f\,y\\
+             u\,y\,[[(suc x)]] & = &  g\,y\,x
+           \end{array}
+         \end{math}
+       \end{center}
+\end{definition}
+
+\noindent This formalization of natural numbers is inspired by the
+definition of Scott Numerals \cite{??} where the notion of a case
+distinction is built into the encoding. We can think of $[[Y]]$ in the
+source object of $\case$ as the type additional inputs that will be
+passed to both $f$ and $g$, but we can think of $[[Nat]]$ in the
+source object of $\case$ as the type of the scrutiny.  Thus, since in
+the base case there is no predecessor, $f$, will not require the
+scrutiny, and so it is ignored.  
+
+One major difference between SNNOs and the more traditional natural
+number objects is that in the definition of the latter $g$ is defined
+by well-founded recursion.  However, SNNOs do not allow this, but in
+the presence of fixpoints we are able to regain this feature without
+having to bake it into the definition of natural number objects.
+However, to allow this we have found that when combining fixpoints and
+case analysis to define terminating functions on the natural numbers
+it is necessary to uniformly construct the input to both $f$ and $g$
+due to the reduction rule of $[[fix]]$.  Thus, we extend the type of
+$f$ to $[[Y x Nat]]$, but then ignore the second projection when
+reaching the base case.
+
+We now have all the necessary structure to describe the model of the
+programmatic fragment.
+\begin{definition}
+  \label{def:P-model}
+  A model of the programmatic fragment, called a
+  \textbf{$\cat{P}$-model}, consists of a cartesian closed category,
+  $\cat{C}$, with fixpoints and a SNNO.
+\end{definition}
+\noindent
+The following definition gives an interpretation of types and typing
+contexts into a $\cat{P}$-model.
+\begin{definition}
+  \label{def:term-interp}
+  Suppose $\cat{P}$ is a $\cat{P}$-model.
+  \begin{itemize}
+  \item The interpretation of types as objects is as follows:
+    \[
+    \begin{array}{lll}
+      \interp{[[True]]} & = & 1\\
+      \interp{[[Nat]]} & = & [[Nat]]\\
+      \interp{[[X x Y]]} & = & \interp{[[X]]} \times \interp{[[Y]]}\\
+      \interp{[[X -> Y]]} & = & \interp{[[X]]} \to \interp{[[Y]]}\\      
+    \end{array}
+    \]
+
+  \item The interpretation of typing contexts is as follows:
+    \[
+    \begin{array}{lll}
+      \interp{\cdot} & = & 1\\
+      \interp{[[D,x1 : X1]]} & = &
+      \interp{[[D]]} \times \interp{[[X1]]}\\
+    \end{array}
+    \]
+  \end{itemize}
+  We always assume that the interpretation of typing contexts is
+  right-associated.  
+\end{definition}
+
+The following result is mostly known, but we give the cases of the
+proof that are most interesting.  The cases for SNNOs are novel, but
+straightforward given their definition.
+\begin{theorem}[Soundness]
+  \label{theorem:P-soundness}
+  Suppose $\cat{P}$ is a $\cat{P}$-model.
+  \begin{itemize}
+  \item[i.] If $[[D |-P t : X]]$, then there is a morphism,
+    $\interp{[[t]]} : \interp{[[D]]} \mto \interp{[[X]]}$, in
+    $\cat{P}$, and
+  \item[ii.] If $[[D |-P t = t' : X]]$,
+    then $\interp{[[t]]} = \interp{[[t']]}$ in $\cat{P}$.
+  \end{itemize}
+\end{theorem}
+\begin{proof}
+  Please see the full proof in
+  Appendix~\ref{subsec:proof_of_soundness}.
+\end{proof}
+% subsection the_programmatic_fragment (end)
+% section the_fragments_and_their_semantics (end)
+
+\section{A Termination/Non-Termination Adjoint Model}
+\label{sec:a_termination/non-termination_adjoint_model}
+We have so far laid out both the syntactic and categorical
+formalizations of the logical fragment and the programmatic fragment.
+At this point we turn to joining these two fragments together using an
+adjunction, but before this we must acquaint ourselves with the basic
+notions involved in the construction of such a model.
+
+\subsection{The Basic Tools}
+\label{subsec:the_basic_tools}
+We have been working in cartesian closed categories, but much of the
+basic categorical tools we will employ arose from the study of
+symmetric monoidal closed categories which are at the heart of
+categorical models of linear logic.  This section consists of
+well-known categorical tools and is based on the Benton's
+presentation; see \cite{?} for references on the history of these
+notions.
+
+A symmetric monoidal closed category, $(\cat{C}, \otimes, I, \limp,
+\lambda, \rho, \beta, \alpha)$, consists of a bifunctor $\otimes :
+\cat{C} \times \cat{C} \to \cat{C}$, called the tensor product of
+$\cat{C}$, which is associative, there is a natural isomorphism,
+$\alpha_{A,B,C} : (A \otimes B) \otimes C \to A \otimes (B \otimes
+C)$, has a unit $I$, that is, there are natural isomorphisms
+$\lambda_A : A \otimes I \to I$ and $\rho_A : I \otimes A \to A$, the
+tensor product is symmetric and hence there is a natural isomorphism
+$\beta_{A,B} : A \otimes B \to B \otimes A$, and finally, the category
+is closed.  That is, the following is a natural bijection:
+\[
+\Hom{\cat{C}}{A \otimes B,C} \cong \Hom{\cat{C}}{A, B \limp C}
+\]
+Furthermore, the natural transformations in the definition of a
+symmetric monoidal category are subject to several coherence
+conditions.  For the complete definition see
+Appendix~\ref{sec:symmetric_monoidal_closed_categories}.
+
+A functor, $(F,\m{})$, between the two symmetric monoidal categories
+$(\cat{M}_1, \otimes_1, I_1)$ and $(\cat{M}_2, \otimes_2, I_2)$ is an
+ordinary functor $F : \cat{M}_1 \mto \cat{M}_2$ such that there is a
+natural transformation $\m{A,B} : FA \otimes_2 FB \mto F(A \otimes_1
+B)$ and a morphism $\m{I} : I_2 \mto FI_1$.  These are also subject to
+some coherence conditions; see
+Appendix~\ref{sec:symmetric_monoidal_closed_categories}.  Natural
+transformations between symmetric monoidal functors, $(F, \m{})$ and
+$(G, \n{})$ are ordinary natural transformations $f : F \to G$ subject
+to the following coherence conditions:
+\begin{mathpar}
+  \scriptsize
+    \bfig
+    \square<1000,500>[
+      FA \otimes_2 FB`
+      F(A \otimes_1 B)`
+      GA \otimes_2 GB`
+      G(A \otimes_1 B);
+      m_{A,B}`
+      f_A \otimes_2 f_B`
+      f_{A \otimes_1 B}`
+      n_{A,B}]
+    \efig
+    \and
+    \bfig
+    \Vtriangle/->`<-`<-/[
+      FI_1`
+      GI_1`
+      I_2;
+      f_{I_1}`
+      m_{I_1}`
+      n_{I_1}]
+    \efig
+  \end{mathpar}  
+
+We will be making heavy use of symmetric monoidal adjunctions, and so
+we give their full definition.
+\begin{definition}
+  \label{def:SMCADJ}
+  Suppose $(\cat{M}_1,I_1,\otimes_1)$ and $(\cat{M}_2,I_2,\otimes_2)$
+  are SMCs, and $(F,m)$ is a symmetric monoidal functor between
+  $\cat{M}_1$ and $\cat{M}_2$ and $(G,n)$ is a symmetric monoidal
+  functor between $\cat{M}_2$ and $\cat{M}_1$.  Then a
+  \textbf{symmetric monoidal adjunction} is an ordinary adjunction
+  $\cat{M}_1 : F \dashv G : \cat{M}_2$ such that the unit,
+  $\varepsilon : A \to GFA$, and the counit, $\eta_A : FGA \to A$, are
+  symmetric monoidal natural transformations.  Thus, the following
+  diagrams must commute:
+  \begin{mathpar}
+    \scriptsize
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      FGA \otimes_1 FGB`
+      FG(A \otimes_1 B)`
+      A \otimes_1 B;
+      \q{A,B}`
+      \eta_A \otimes_1 \eta_B`
+      \eta_{A \otimes_1 B}]
+    \efig
+    \and
+    \bfig
+    \Vtriangle|amm|/->`<-`=/[
+      FGI_1`
+      I_1`
+      I_1;
+      \eta_{I_1}`
+      \q{I_1}`]
+    \efig
+    \and
+    \bfig
+    \dtriangle|mmb|<1000,500>[
+      A \otimes_2 B`
+      GFA \otimes_2 GFB`
+      GF(A \otimes_2 B);
+      \varepsilon_A \otimes_2 \varepsilon_B`
+      \varepsilon_{A \otimes_2 B}`
+      \p{A,B}]
+    \efig
+    \and
+    \bfig
+    \Vtriangle|amm|/->`=`<-/[
+      I_2`
+      GFI_2`
+      I_2;
+      \varepsilon_{I_2}``
+      p_{I_2}]
+    \efig
+  \end{mathpar}
+  Note that $\p{}$ and $\q{}$ exist because $(FG,\q{})$ and
+  $(GF,\p{})$ are symmetric monoidal functors.
+\end{definition}
+
+In addition, we make use of symmetric monoidal monads and comonads.
+We give their definition next.
+\begin{definition}
+  \label{def:symm-monoidal-monad}
+  A \textbf{symmetric monoidal monad} on a symmetric monoidal
+  category $\cat{C}$ is a triple $(T,\eta, \mu)$, where
+  $(T,\n{})$ is a symmetric monoidal endofunctor on $\cat{C}$,
+  $\eta_A : A \mto TA$ and $\mu_A : T^2A \to TA$ are
+  symmetric monoidal natural transformations, which make the following
+  diagrams commute:
+  \begin{mathpar}
+    \scriptsize
+    \bfig
+    \square|ammb|<600,600>[
+      T^3 A`
+      T^2A`
+      T^2A`
+      TA;
+      \mu_{TA}`
+      T\mu_A`
+      \mu_A`
+      \mu_A]
+    \efig
+    \and
+    \bfig
+    \Atrianglepair/=`<-`=`->`<-/<600,600>[
+      TA`
+      TA`
+      T^2 A`
+      TA;`
+      \mu_A``
+      \eta_{TA}`
+      T\eta_A]
+    \efig
+  \end{mathpar}
+\end{definition}
+
+\begin{definition}
+  \label{def:symm-monoidal-comonad}
+  A \textbf{symmetric monoidal comonad} on a symmetric monoidal
+  category $\cat{C}$ is a triple $(T,\varepsilon, \delta)$, where
+  $(T,\m{})$ is a symmetric monoidal endofunctor on $\cat{C}$,
+  $\varepsilon_A : TA \mto A$ and $\delta_A : TA \to T^2 A$ are
+  symmetric monoidal natural transformations, which make the following
+  diagrams commute:
+  \begin{mathpar}
+    \scriptsize
+    \bfig
+    \square|amma|<600,600>[
+      TA`
+      T^2A`
+      T^2A`
+      T^3A;
+      \delta_A`
+      \delta_A`
+      T\delta_A`
+      \delta_{TA}]
+    \efig
+    \and
+    \bfig
+    \Atrianglepair/=`->`=`<-`->/<600,600>[
+      TA`
+      TA`
+      T^2 A`
+      TA;`
+      \delta_A``
+      \varepsilon_{TA}`
+      T\varepsilon_A]
+    \efig
+  \end{mathpar}
+\end{definition}
+The use of symmetric monoidal natural transformations in the previous
+two definitions packs a lot of punch.  See what these conditions look
+like in Appendix~\ref{sec:symmetric_monoidal_closed_categories}.  
+% subsection the_basic_tools (end)
+
+Specializing the basic tools just presented to cartesian categories
+has surprising implications especially when considering symmetric
+monoidal adjunctions.
+
+\subsection{Symmetric Monoidal Adjunctions on Cartesian Categories}
+\label{subsec:symmetric_monoidal_adjunctions_on_cartesian_categories}
+First, it is well-known that any cartesian category is a symmetric
+monoidal category. The following lemma summarizes this structure.
+\begin{lemma}[CCCs are SMCs]
+  \label{lemma:CCC-is-SMC}
+  Suppose $(\cat{C}, 1, \times, \Rightarrow)$ is a cartesian closed
+  category.  Then the following defines the structure of a symmetric
+  monoidal category:
+  \[
+  \begin{array}{rll}
+    \lambda_A & = & \pi_2 : 1 \times A \mto A\\
+    \lambda^{-1}_A & = & \langle \t_A , \id_A  \rangle : A \mto 1 \times A\\
+    \\
+    \rho_A & = & \pi_1 : A \times 1 \mto A\\
+    \rho^{-1}_A & = & \langle \id_A , \t_A  \rangle : A \mto A \times 1\\
+    \\
+    \alpha_{A,B,C} & = & \langle \pi_1;\pi_1, \pi_2 \times \id_C \rangle : (A \times B) \times C \mto A \times (B \times C)\\
+    \alpha^{-1}_{A,B,C} & = & \langle \id_A \times \pi_1, \pi_2;\pi_2 \rangle : A \times (B \times C) \mto (A \times B) \times C\\
+    \\
+    \beta_{A,B} & = & \langle \pi_2, \pi_1 \rangle : A \times B \mto B \times A\\
+  \end{array}
+  \]
+  Each of the above morphisms satisfy the appropriate diagrams.
+\end{lemma}
+
+Symmetric monoidal functors can be seen as functors that essentially
+preserve the monoidal structure, and this kind of preservation can be
+given to other types of functors.  The following definition describes
+how symmetric monoidal functors can be modified to preserve the
+cartesian structure of a cartesian category.
+
+\begin{definition}
+  \label{def:prod-functor}
+  A \textbf{product functor}, $(F,m) : \cat{C}_1 \to \cat{C}_2$,
+  between two cartesian categories consists of an ordinary functor $F
+  : \cat{C}_1 \to \cat{C}_2$, a natural transformation $m_{A,B} : FA
+  \times FB \mto F(A \times B)$, and a map $m_1 : 1 \to F1$ subject to the
+  following coherence diagrams:
+  \begin{mathpar}
+    \bfig
+    \btriangle|mmm|<1000,500>[
+      FA \times FB`
+      F(A \times B)`
+      FA;
+      m_{A.B}`
+      \pi_1`
+      F\pi_1]
+    \efig
+    \and
+    \bfig    
+    \btriangle|mmm|<1000,500>[
+      FA \times FB`
+      F(A \times B)`
+      FB;
+      m_{A.B}`
+      \pi_2`
+      F\pi_2]
+    \efig
+    \and
+    \bfig
+    \btriangle|mmm|<1000,500>[
+      FC`
+      FA \times FB`
+      F(A \times B);
+      \langle Ff, Fg \rangle`
+      F(\langle f, g \rangle)`
+      m_{A,B}]
+    \efig
+    \and
+    \bfig
+    \btriangle|mmm|<1000,500>[
+      FA`
+      1`
+      F1;
+      \t_{FA}`
+      F\t_{A}`
+      m_1]
+    \efig
+  \end{mathpar} 
+\end{definition}
+\noindent
+It is not surprising that product functors are symmetric monoidal functors.
+\begin{lemma}[Product Functors are Symmetric Monoidal]
+  \label{lemma:product_functors_are_symmetric_monoidal}
+  If $(F,m) : \cat{C}_1 \to \cat{C}_2$ is a product functor betwen cartesian categories, then
+  $(F,m)$ is a symmetric monoidal functor.
+\end{lemma}
+\iffalse
+\begin{proof}
+  We simply show that each diagram in the definition of symmetric
+  monoidal functor commutes.  This proof requires the following facts
+  about cartesian categories:
+  \[
+  \begin{array}{lll}
+    f;\langle g , h \rangle = \langle f;g, f;g \rangle & \text{(P1)}\\
+    \\
+    f \times g = \langle \pi_1;f , \pi_2;g \rangle & \text{(P2)}\\
+    \\
+    \langle f , g \rangle;(h \times i) = \langle f;h, g;i \rangle & \text{(P3)}\\
+    \\
+    (f \times g);\pi_1 = \pi_1;f & \text{(P4)}\\
+    \\
+    (f \times g);\pi_2 = \pi_2;g & \text{(P5)}\\
+  \end{array}
+  \]
+  \begin{itemize}
+  \item[] Associativity:\ \\
+    \[
+    \bfig
+    \vSquares|ammmmma|/->`->`->``->`->`->/[
+      (FA \times FB) \times FC`
+      FA \times (FB \times FC)`
+      F(A \times B) \times FC`
+      FA \times F(B \times C)`
+      F((A \times B) \times C)`
+      F(A \times (B \times C));
+      {\alpha}_{FA,FB,FC}`
+      m_{A,B} \times \id_{FC}`
+      \id_{FA} \times m_{B,C}``
+      m_{A \times B,C}`
+      m_{A,B \times C}`
+      F{\alpha}_{A,B,C}]
+    \efig
+    \]
+    In this case it is easiest to show that each side of the diagram
+    reduces to the same morphism.
+
+    First, the right side reduces in the following way:
+    \begin{center}
+      \begin{math}
+        \begin{array}{lll}
+          \alpha_{FA,FB,FC};(\id_{FA} \times m_{B,C});m_{A,B \times C} \\
+          \,\,\,\,\,\,\,\,= \langle \pi_1;\pi_1, \pi_2 \times \id_{FC} \rangle;(\id_{FA} \times m_{B,C});m_{A,B \times C} & \text{(Definition)}\\
+          \,\,\,\,\,\,\,\,= \langle \pi_1;\pi_1, (\pi_2 \times \id_{FC});m_{B,C} \rangle;m_{A,B \times C} & \text{(P3)}\\
+        \end{array}
+      \end{math}
+    \end{center}
+
+    Now the left side reduces to the same morphism:
+    \[
+    \scriptsize
+    \begin{array}{lll}
+      (m_{A,B} \times \id_{FC});m_{A \times B,C};\underline{F\alpha_{A,B,C}} \\
+    \,\,\,\,\,\,\,\,= (m_{A,B} \times \id_{FC});m_{A \times B,C};\underline{F(\langle \pi_1;\pi_1, \pi_2 \times \id_C \rangle)} & \text{(Definition)}\\
+   \,\,\,\,\,\,\,\,= (m_{A,B} \times \id_{FC});\underline{m_{A \times B,C};\langle F\pi_1;F\pi_1, F(\pi_2 \times \id_C) \rangle;m_{A,B \times C}} & \text{(Product Functor)}\\
+   \,\,\,\,\,\,\,\,= (m_{A,B} \times \id_{FC});\langle \underline{m_{A \times B,C};F\pi_1};F\pi_1, m_{A \times B,C};F(\pi_2 \times \id_C) \rangle;m_{A,B \times C} & \text{(P1)}\\
+   \,\,\,\,\,\,\,\,= (m_{A,B} \times \id_{FC});\langle \pi_1;F\pi_1, m_{A \times B,C};\underline{F(\pi_2 \times \id_C)} \rangle;m_{A,B \times C} & \text{(Product Functor)}\\
+   \,\,\,\,\,\,\,\,= (m_{A,B} \times \id_{FC});\langle \pi_1;F\pi_1, m_{A \times B,C};\underline{F(\langle \pi_1;\pi_2, \pi_2 \rangle)} \rangle;m_{A,B \times C} & \text{(P2)}\\
+   \,\,\,\,\,\,\,\,= (m_{A,B} \times \id_{FC});\langle \pi_1;F\pi_1, \underline{m_{A \times B,C};\langle F\pi_1;F\pi_2, F\pi_2 \rangle};m_{B,C} \rangle;m_{A,B \times C} & \text{(Product Functor)}\\
+   \,\,\,\,\,\,\,\,= (m_{A,B} \times \id_{FC});\langle \pi_1;F\pi_1, \langle \underline{m_{A \times B,C};F\pi_1};F\pi_2, \underline{m_{A \times B,C};F\pi_2} \rangle;m_{B,C} \rangle;m_{A,B \times C} & \text{(P1)}\\
+   \,\,\,\,\,\,\,\,= (m_{A,B} \times \id_{FC});\langle \pi_1;F\pi_1, \underline{\langle \pi_1;F\pi_2, \pi_2 \rangle};m_{B,C} \rangle;m_{A,B \times C} & \text{(Product Functor)}\\
+   \,\,\,\,\,\,\,\,= \underline{(m_{A,B} \times \id_{FC});\langle \pi_1;F\pi_1, (F\pi_2 \times \id_{FC});m_{B,C} \rangle};m_{A,B \times C} & \text{(P2)}\\
+   \,\,\,\,\,\,\,\,= \langle \underline{(m_{A,B} \times \id_{FC});\pi_1};F\pi_1, (m_{A,B} \times \id_{FC});(F\pi_2 \times \id_{FC});m_{B,C} \rangle;m_{A,B \times C} & \text{(P1)}\\
+   \,\,\,\,\,\,\,\,= \langle \pi_1;\underline{m_{A,B};F\pi_1}, (m_{A,B} \times \id_{FC});(F\pi_2 \times \id_{FC});m_{B,C} \rangle;m_{A,B \times C} & \text{(P4)}\\
+   \,\,\,\,\,\,\,\,= \langle \pi_1;\pi_1, \underline{(m_{A,B} \times \id_{FC});(F\pi_2 \times \id_{FC})};m_{B,C} \rangle;m_{A,B \times C} & \text{(Product Functor)}\\
+   \,\,\,\,\,\,\,\,= \langle \pi_1;\pi_1, (\underline{(m_{A,B};F\pi_2)} \times \id_{FC});m_{B,C} \rangle;m_{A,B \times C} & \text{(Functor)}\\
+   \,\,\,\,\,\,\,\,= \langle \pi_1;\pi_1, (\pi_2 \times \id_{FC});m_{B,C} \rangle;m_{A,B \times C} & \text{(Product Functor)}\\
+    \end{array}
+    \]
+
+  \item[] Left Unitor:\\
+    \[
+    \bfig
+    \square|amma|/->`->`<-`->/<1000,500>[
+      1 \times FA`
+      FA`
+      F1 \times FA`
+      F(1 \times A);
+      {\lambda}_{FA}`
+      m_{1} \times \id_{FA}`
+      F{\lambda}_{A}`
+      m_{1,A}]
+    \efig
+    \]
+  
+  First, notice that $\lambda_{FA} = \pi_2$. We can show the following:
+  \[
+  \begin{array}{lll}
+    (m_1 \times \id_{FA});m_{1,A};F\lambda_A\\
+    \,\,\,\,\,\,\,\,= (m_1 \times \id_{FA});m_{1,A};F\pi_2 & \text{(Definition)}\\
+    \,\,\,\,\,\,\,\,= (m_1 \times \id_{FA});\pi_2 & \text{(Product Functor)}\\
+    \,\,\,\,\,\,\,\,= \pi_2 & \text{(P5)}\\
+  \end{array}
+  \]
+
+\item[] Right Unitor:\\
+  \[
+  \bfig
+  \square|amma|/->`->`<-`->/<1000,500>[
+    FA \times 1`
+    FA`
+    FA \times F1`
+    F(A \times 1);
+    {\rho}_{FA}`
+    \id_{FA} \times m_{1}`
+    F{\rho}_{A}`
+    m_{A,1}]
+  \efig
+  \]
+  \end{itemize}
+  This case is similar to the previous one:
+  \[
+  \begin{array}{lll}
+    (\id_{FA} \times m_1);m_{A,1};F\rho_A\\
+    \,\,\,\,\,\,\,\,=  (\id_{FA} \times m_1);m_{A,1};F\pi_1 & \text{(Definition)}\\
+    \,\,\,\,\,\,\,\,=  (\id_{FA} \times m_1);\pi_1 & \text{(Product Functor)}\\
+    \,\,\,\,\,\,\,\,=  \pi_1 & \text{(P4)}\\
+    \,\,\,\,\,\,\,\,=  \rho_{FA} & \text{(Definition)}\\
+  \end{array}
+  \]
+
+\item[] Symmetry:\\
+  \[
+  \bfig
+  \square|amma|/->`->`->`->/<1000,500>[
+    FA \times FB`
+    FB \times FA`
+    F(A \times B)`
+    F(B \times A);
+    {\beta}_{FA,FB}`
+    m_{A,B}`
+    m_{B,A}`
+    F{\beta}_{A,B}]
+  \efig
+  \]
+  First, notice that $\beta_{A,B} = \langle \pi_2, \pi_1 \rangle$.  Thus, we have the following:
+  \[
+  \begin{array}{lll}
+    \beta_{FA,FB};m_{B,A}\\
+    \,\,\,\,\,\,\,\,=  \langle \pi_2, \pi_1 \rangle;m_{B,A} & \text{(Definition)}\\
+    \,\,\,\,\,\,\,\,=  \langle m_{A,B};F\pi_2, m_{A,B};F\pi_1 \rangle;m_{B,A} & \text{(Product Functor)}\\
+    \,\,\,\,\,\,\,\,=  m_{A,B};\langle F\pi_2, F\pi_1 \rangle;m_{B,A} & \text{(P1)}\\
+    \,\,\,\,\,\,\,\,=  m_{A,B};F(\langle \pi_2, \pi_1 \rangle) & \text{(Product Functor)}\\
+    \,\,\,\,\,\,\,\,=  m_{A,B};F\beta_{A,B} & \text{(Definition)}\\
+  \end{array}
+  \]
+\end{proof}
+\fi
+\noindent
+A symmetric monoidal functor, $(F, \m{})$, is called \textbf{strong}
+if $\m{A,B} : FA \otimes_2 FB \mto F(A \otimes_1 B)$ and $\m{I} : I_2
+\mto FI_1$ are isomorphisms.  It turns out that product functors are
+in fact strong.
+\begin{lemma}[Product Functors Isomorphisms]
+  \label{lemma:product_functors_iso}
+  If $(F,m) : \cat{C}_1 \mto \cat{C}_2$ is a product functor, then
+  $m_{A,B} : FA \times FB \mto F(A \times B)$ and $m_1 : 1 \mto F1$ are
+  isomorphisms.
+\end{lemma}
+\iffalse
+\begin{proof}
+  Define $m^{-1}_1 = \t_{F 1} : F1 \mto 1$.  Then we have the following:
+  \[
+  \begin{array}{lll}
+    m_1;t_{F1} = \id_{1} & \text{(Uniqueness)}\\    
+  \end{array}
+  \]
+  and
+  \[
+  \begin{array}{llll}
+    t_{F1};m_1
+    & = & F\t_t & \text{(Product Functor)}\\
+    & = & F\id_t & \text{(Uniqueness)}\\
+    & = & \id_{Ft}     
+  \end{array}
+  \]
+
+  Now define $m^{-1}_{A,B} = \langle F\pi_1, F\pi_2 \rangle$.  Then we have the following:
+  \[
+  \begin{array}{llll}
+    m_{A,B};m^{-1}_{A,B}
+    & = & m_{A,B};\langle F\pi_1, F\pi_2 \rangle & \text{(Definition)}\\
+    & = & \langle m_{A,B};F\pi_1, m_{A,B};F\pi_2 \rangle & \text{(P1)}\\
+    & = & \langle \pi_1, \pi_2 \rangle & \text{(Product Functor)}\\
+    & = & \id_{FA \times FB} & \text{(Cartesian)}\\
+  \end{array}
+  \]
+  and
+  \[
+  \begin{array}{llll}
+    m^{-1}_{A,B};m_{A,B}
+    & = & \langle F\pi_1, F\pi_2 \rangle;m_{A,B} & \text{(Definition)}\\
+    & = & F(\langle \pi_1, \pi_2 \rangle) & \text{(Product Functor)}\\
+    & = & F(\id_{A \times B}) & \text{(Cartesian)}\\
+    & = & \id_{F(A \times B)}\\    
+  \end{array}
+  \]
+\end{proof}
+\fi
+\noindent
+Surprisingly, strong symmetric monoidal functors between cartesian
+categories preserve the cartesian structure, and hence, are in fact
+product functors.  
+\begin{lemma}[Strong Symmetric Monoidal Functors are Product Functors]
+  \label{lemma:strong-symmetric_monoidal_functors_are_product_functors}
+  If $(F,m) : \cat{C}_1 \mto \cat{C}_2$ is a strong symmetric monoidal
+  functor between cartesian closed categories, then $(F,m)$ is a
+  product functor.
+\end{lemma}
+\iffalse
+\begin{proof}
+  \ \\
+  \begin{itemize}
+  \item[] Case 1.\\
+    \[
+      \bfig
+      \btriangle|mmm|<1000,500>[
+        FA`
+        1`
+        F1;
+        \t_{FA}`
+        F\t_{A}`
+        m_1]
+      \efig
+    \]
+    This case follows because it must be the case that
+    \[F\t_{A};\m{1}^{-1} = \t_{FA} : FA \mto 1\]
+    by the uniqueness of the terminal arrow.
+    
+  \item[] Case 2.\\
+    \[
+      \bfig
+      \btriangle|mmm|<1000,500>[
+        FA \times FB`
+        F(A \times B)`
+        FA;
+        m_{A,B}`
+        \pi_1`
+        F\pi_1]
+      \efig
+      \]
+      First, $\rho_A = \pi_1 : A \times 1 \mto A$, and hence, we have the following:
+      \[
+      \begin{array}{lll}
+        (\id_A \times \t_A);\rho_1 & = & \langle \pi_1;\id_A, \pi_2;\t_A \rangle;\rho_1\\
+        & = & \langle \pi_1;\id_A, \pi_2;\t_A \rangle;\pi_1\\
+        & = & \pi_1 : A \times B \mto A
+      \end{array}
+      \]
+      This case follows by the following equational reasoning:
+      \[
+      \begin{array}{llllllll}
+        \m{A,B};F\pi_1
+        & = & \m{A,B};F(\id_A \times \t_B);F\rho_A & \text{(Above Equation)}\\
+        & = & (\id_{FA} \times F(\t_{B}));\m{A,1};F\rho_A & \text{(Naturality of $\m{}$)}\\
+        & = & (\id_{FA} \times \t_{FB};\m{1});\m{A,1};F\rho_A & \text{(Case 1)}\\
+        & = & \langle \id_{FA} \times \t_{FB} \rangle;(\id_{FA} \times \m{1});\m{A,1};F\rho_A & \text{(Cartesian)}\\
+        & = & \langle \id_{FA} \times \t_{FB} \rangle;\rho_{FA} & \text{($F$ is Symmetric Monoidal)}\\
+        & = & \langle \id_{FA} \times \t_{FB} \rangle;\pi_1 & \text{(Cartesian)}\\
+        & = & \pi_1 & \text{(Cartesian)}\\ 
+      \end{array}
+      \]
+    
+  \item[] Case 3.\\    
+    \[
+      \bfig    
+      \btriangle|mmm|<1000,500>[
+        FA \times FB`
+        F(A \times B)`
+        FB;
+        m_{A,B}`
+        \pi_2`
+        F\pi_2]
+      \efig
+    \]
+    First, $\lambda_A = \pi_2 : 1 \times A \mto A$, and hence, we have the following:
+      \[
+      \begin{array}{lll}
+        (\t_A \times \id_A);\lambda_A & = & \langle \pi_1;\t_A, \pi_2;\id_A \rangle;\lambda_A\\
+        & = & \langle \pi_1;\t_A, \pi_2;\id_A \rangle;\pi_2\\
+        & = & \pi_2 : A \times B \mto B
+      \end{array}
+      \]
+      This case follows from similar equational reasoning
+      as the previous case.      
+      
+  \item[] Case 4.\\    
+    \[
+    \bfig
+    \btriangle|mmm|<1000,500>[
+      FC`
+      FA \times FB`
+      F(A \times B);
+      \langle Ff, Fg \rangle`
+      F(\langle f, g \rangle)`
+      m_{A,B}]
+    \efig
+    \]
+    First, note that the following diagrams commute:
+    \[
+    \bfig
+    \Atrianglepair|mmmaa|/->`->`->`<-`->/<1000,600>[
+      FA \times FB`
+      FA`
+      F(A \times B)`
+      FB;
+      \pi_1`
+      \m{A,B}`
+      \pi_2`
+      F\pi_1`
+      F\pi_2]
+    \morphism(1000,1200)|m|<0,-600>[FC`FA \times FB;\langle Ff, Fg \rangle]
+    \morphism(1000,1200)/{@{>}@/^-1em/}/<-1000,-1200>[FC`FA;Ff]
+    \morphism(1000,1200)/{@{>}@/^1em/}/<1000,-1200>[FC`FB;Fg]
+    \place(600,600)[1]
+    \place(1400,600)[2]
+    \place(750,250)[3]
+    \place(1230,250)[4]
+    \efig
+    \]
+    Diagrams 1 and 2 hold by the universal mapping property for the
+    cartesian product, and diagrams three and four hold by cases two
+    and three of this proof.
+
+    We now have the following two bits of equational reasoning:
+    \[
+    \begin{array}{lllll}
+      F(\langle f,g \rangle);\m{A,B}^{-1};\pi_1
+      & = & F(\langle f,g \rangle);\m{A,B}^{-1};\m{A,B};F\pi_1 & \text{(Diagram 3)}\\
+      & = & F(\langle f,g \rangle);F\pi_1 & \text{}\\
+      & = & F(\langle f,g \rangle;\pi_1) & \text{}\\
+      & = & Ff & \text{(Cartesian)}\\
+    \end{array}      
+    \]
+    and
+    \[
+    \begin{array}{lllll}
+      F(\langle f,g \rangle);\m{A,B}^{-1};\pi_2
+      & = & F(\langle f,g \rangle);\m{A,B}^{-1};\m{A,B};F\pi_2 & \text{(Diagram 4)}\\
+      & = & F(\langle f,g \rangle);F\pi_2 & \text{}\\
+      & = & F(\langle f,g \rangle;\pi_2) & \text{}\\
+      & = & Fg & \text{(Cartesian)}\\
+    \end{array}      
+    \]
+    Thus, by the uniqueness of $\langle Ff,Fg \rangle$, due to the
+    universal mapping property of the cartesian product, it must be
+    the case that the following holds:
+    \[
+    F(\langle f,g \rangle);\m{A,B}^{-1} = \langle Ff,Fg \rangle
+    \]
+    Thus, $F(\langle f,g \rangle) = \langle Ff,Fg \rangle;\m{A,B}$.
+  \end{itemize}  
+\end{proof}
+\fi
+
+The following lemma shows that the left adjoint in any symmetric
+monoidal adjunction is strong, and hence, when both categories in the
+adjunction are cartesian we know the left adjoint preserves the
+cartesian structure.  This was first shown by Benton but for LNL
+models where one of the categories is cartesian closed, and thus, the
+following result is a generalization \cite{benton1995}.
+
+\begin{lemma}[Symmetric Monoidal Adjunctions have Strong Left-adjoints]
+  \label{lemma:product_functors_strong}
+  If $(F,m) \dashv (G,n) : \cat{C}_1 \mto \cat{C}_2$ is any symmetric
+  monoidal adjunction, then $F$ is strong.
+\end{lemma}
+\begin{proof}
+  In \cite{benton1995} Benton shows that this result holds for an LNL
+  model, but his exact proof works for the case when both categories
+  in the adjunction are symmetric monoidal.  
+\end{proof}
+
+If we have a symmetric monoidal adjunction between cartesian
+categories we know from the previous result that the left adjoint is a
+product functor, but it turns out that we also know the right adjoint
+must be a product functor as well, because right adjoints preserve
+limits.
+
+\begin{lemma}[Symmetric Monoidal Adjunctions and Product Functors]
+  \label{lemma:adjoint-CCC-prod-func}
+  Suppose $(F,m) : \cat{C}_1 \to \cat{C}_2$ and $(G,n) : \cat{C}_2 \to
+  \cat{C}_1$ are symmetric monoidal functors between cartesian-closed
+  categories, and $F \vdash G$ is a symmetric monoidal adjunction.
+  Then $(F,m)$ and $(G,n)$ are product functors.
+\end{lemma}
+\begin{proof}
+  We know from Lemma~\ref{lemma:product_functors_strong} $(F,m)$ is
+  strong, and hence, by
+  Lemma~\ref{lemma:strong-symmetric_monoidal_functors_are_product_functors}
+  it is a product functor.  Now we must show that $(G,n)$ is strong,
+  but it is a right adjoint, and hence, preserves all limits.  Thus,
+  it is strong.
+\end{proof}
+\noindent
+The remainder of the paper will will make heavy use of product
+functors due to the last result.  To make the exposition more clear we
+will call symmetric monoidal natural transformations between product
+functors \textbf{product natural transformations} and symmetric
+monoidal adjunctions \textbf{product adjunctions}.
+
+Following Moggi's \cite{?} lead we must be sure that the symmetric
+monoidal monad arising from the symmetric monoidal adjunction is
+strong for it to be programmaticly useful.  However, monadic strength
+is part of the monoidal structure.
+\begin{lemma}[Monadic Strength]
+  \label{lemma:monadic-strength}
+  Suppose $(T,\eta,\mu)$ is a monoidal monad on a monoidal category
+  $\cat{C}$.  Then the strength maps exists:
+  \[
+  \begin{array}{lll}
+    \st{A,B} : A \otimes TB \mto T (A \otimes B)\\    
+  \end{array}
+  \]
+  Then the following diagrams must commute:
+  \[
+  \begin{array}{cccccccccc}
+    \bfig
+    \square|mmaa|/`->``->/<1200,500>[
+      (A \otimes B) \otimes TC``
+      A \otimes (B \otimes TC)`
+      A \otimes T(B \otimes C);`
+      \alpha_{A,B,TC}``
+      \id_A \otimes \st{B,C}]
+
+    \square(1200,0)|mmma|/``->`->/<1200,500>[`
+      T((A \otimes B) \otimes C)`
+      A \otimes T(B \otimes C)`
+      T(A \otimes (B \otimes C));``
+      T\alpha_{A,B,C}`
+      \st{A,T(B \otimes C)}]
+
+    \morphism(0,500)<2400,0>[
+      (A \otimes B) \otimes TC`
+      T((A \otimes B) \otimes C);
+      \st{A \otimes B,C}]
+    \efig\\
+    \\
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      I \otimes TA`
+      T(I \otimes A)`
+      TA;
+      \st{I,A}`
+      \rho_A`
+      T\rho_A]
+    \efig
+  \end{array}
+  \]
+  In addition, the following diagrams must also commute:
+  \begin{center}
+    \begin{mathpar}
+      \bfig
+        \square|mmaa|/`->``->/<1200,500>[
+          A \otimes T^2 B``
+          T(A \otimes TB)`
+          T^2(A \otimes B);`
+          \st{A,TB}``
+          T\st{A,B}]
+        
+        \square(1000,0)|mmma|/``->`->/<1000,500>[`
+      A \otimes TB`
+      T^2(A \otimes B)`
+      T(A \otimes B);``
+      \st{A,B}`
+      \mu_{A \otimes B}]
+
+    \morphism(-400,500)<2200,0>[
+      A \otimes T^2 B`
+      A \otimes TB;
+      \id_{A} \otimes \mu_B]
+    \efig
+    \and
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      A \otimes B`
+      A \otimes TB`
+      T(A \otimes B);
+      \id_A \otimes \eta_B`
+      \eta_{A \times B}`
+      \st{A,B}]    
+    \efig
+    \end{mathpar}
+  \end{center}
+\end{lemma}
+\begin{proof}
+The strength map is defined as follows:
+  \[
+  \begin{array}{lll}
+    \st{A,B} = (\eta_{A} \otimes \id_{TB});\m{A,B} : A \otimes TB \mto T(A \otimes B)\\    
+  \end{array}
+  \]
+  where $\m{A,B} : TA \otimes TB \mto T(A \otimes B)$ is the natural
+  transformation arising from the fact that $T$ is a monoidal
+  endofunctor on $\cat{C}$.  See
+  Appendix~\ref{subsec:proof_of_monadic_strength} for the rest of the
+  proof.
+\end{proof}
+Brookes and Van Stone \cite{?} define comonadic strength similarly to
+the monadic strength above, $\cmst{A,B} : A \otimes SB \mto S(A
+\otimes B)$ given a monoidal comonad $(S,\varepsilon,\delta)$, but
+this is not constructible from the monoidal structure like monadic
+strength, because we have no means of injecting $A$ into the comonad.
+Just as there is no way out of a monad, there is no way into a
+comonad. So if comonadic strength is necessary it will need to be
+taken as additional structure.
+% subsection symmetric_monoidal_adjunctions_on_cartesian_categories
+% (end)
+
+\subsection{TNT Model}
+\label{subsec:tnt_model}
+We have finally laid out everything we need to define the model of the
+theory we will be programming in.
+\begin{definition}
+  \label{def:TNT-model}
+  A \textbf{termination/non-termination adjoint model (TNT model)} is
+  a symmetric monoidal adjunction $\cat{P} : D \vdash T : \cat{L}$
+  between a $\cat{P}$-model, $\cat{P}$, and a cartesian closed
+  category $\cat{L}$.  Thus, we know the following:
+  \begin{itemize}
+  \item[i.] $\cat{P}$ is a cartesian closed category with fixpoints and a SNNO,
+  \item[ii.] $(D,\m{})$ and $(T, \n{})$ are product functors,
+  \item[iii.] $\uar = DT : \cat{L} \to \cat{L}$ is a symmetric monoidal
+    comonad, and
+  \item[iv.] $\dar = TD : \cat{P} \to \cat{P}$ is a symmetric monoidal
+    monad.
+  \end{itemize}
+\end{definition}
+
+In this model, the monad and comonad have some nice properties.  First,
+by Lemma~\ref{lemma:monadic-strength}, we know $\dar : \cat{P} \to
+\cat{P}$ is strong, and hence, there is a natural transformation:
+\[
+\st{A,B} : A \times \dar B \mto \dar (A \times B)
+\]
+In addition, due to $\dar : \cat{P} \to \cat{P}$ and $\uar : \cat{L}
+\to \cat{L}$ being defined as the composition of two product functors
+we know they themselves are product functors, and hence, we have the
+following natural isomorphisms:
+\[
+\begin{array}{lll}
+  \dar A \times \dar B \cong \dar (A \times B)\\
+  \\
+  \uar A \times \uar B \cong \uar (A \times B)\\
+\end{array}
+\]
+% subsection tnt_model (end)
+
+% section a_termination/non-termination_adjoint_model (end)
+
+\section{TNT Calculus}
+\label{sec:tnt_calculus}
+The \textbf{termination/non-termination (TNT) calculus} is based on
+Benton's LNL logic \cite{??}, and is defined by an giving an extension
+of both the logical fragment and the programmatic fragment.  The
+sequents of both fragments will now have the following form:
+\[
+\begin{array}{lll}
+  [[D;G |-L t : A]]\\
+  [[D |-P t : X]]\\
+\end{array}
+\]
+
+The typing rules for both fragments consist of the original rules from
+Figure~\ref{fig:log-type-rel} and Figure~\ref{fig:prog-typing-rel},
+where the contexts have been extended to the new form, and some new
+rules relating the two fragments using the adjoint functors $T$ and
+$D$. The logical fragment is extended with the following three rules:
+\begin{mathpar}
+  \TNTdruleLTXXD{} \and
+  \TNTdruleLTXXT{} \and
+  \TNTdruleLTXXFElim{}
+\end{mathpar}
+\noindent
+Similarly, the programmatic fragment is extended with the following
+rule:
+\begin{mathpar}
+  \TNTdrulePTXXT{}
+\end{mathpar}
+
+\subsection{The Termination Monad}
+\label{subsec:the_termination_monad}
+Wadler showed \cite{?} that monadic programming is feasible when the
+programming language incorporates the monadic unit and Kleisli
+composition as programs.  So we must derive these in the TNT calculus
+first.  These derivations are not new and are due to Wadler and Benton
+\cite{?}.
+
+The monadic unit, or what we will call $\mathsf{return}$, is defined by
+\[ [[return]] := [[\x:X.T D x]] : [[X -> T D X]].\]
+The Kleisli composition, or we well call $\mathsf{bind}$, is defined
+as follows:
+\[
+[[bind]] := ? : [[h(T D X) -> h((X -> T D Y) -> T D Y)]]
+\]
+% subsection the_termination_monad (end)
+% section tnt_calculus (end)
+
+\section{Related Work}
+\label{sec:related_work}
+\todo[inline]{Write}
+% section related_work (end)
+
+\section{Conclusion}
+\label{sec:conclusion}
+\todo[inline]{Write}
+% section conclusion (end)
+
+\bibliographystyle{plain}
+\bibliography{ref}
+
+\nocite{*}
+\appendix
+
+\include{appA}
+\include{proofs-output}
 
 %%% Local Variables: 
 %%% mode: latex
 %%% TeX-master: t
 %%% End: 
+
+\end{document}

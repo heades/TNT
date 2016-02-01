@@ -1,0 +1,293 @@
+i\section{Proofs}
+\label{sec:proofs}
+
+\subsection{Proof of Soundness (Theorem~\ref{theorem:P-soundness})}
+\label{subsec:proof_of_soundness}
+We will prove part two explicitly which depends on part one in such
+away that proving part one and then part two would require a lot of
+repeated constructions.  We proceed by induction on the form of the
+assumed term-in-context derivation, but since the majority of the
+programmatic fragment is well-known to have a sound and complete
+interpretation into a cartesian closed category we only show the
+one of the cases for natural numbers.
+
+First, recall that $\beta$-equality can be defined as follows in the
+model -- for any morphisms $f : B \times C \mto D$, $g : A \mto C$,
+and $h : A \to B$:
+\[
+\begin{array}{lllll}
+  \langle h;\cur{f},g \rangle; \app_{B,C} & = &  \langle h,g \rangle;(\cur{f} \times \id_C);\app_{B,C}\\
+  & = & \langle h, g\rangle;f\\
+\end{array}
+\]
+
+Using $\beta$-equality we can show what we call $[[fix]]$-equality --
+for any morphisms $f : A \to B$ and $g : B \to C$:
+\[
+\begin{array}{llll}
+  \langle \cur{\pi_2;g},f \rangle;\app_{B,C}
+  & = & \langle \id_A, f \rangle;\pi_2;g\\
+  & = & f;g\\
+\end{array}
+\]
+
+\begin{itemize}
+\item[] Case.\ \\ 
+  \begin{center}
+    \begin{math}
+      $$\mprset{flushleft}
+      \inferrule* [right=\ifrName{Fix}] {
+        [[D |-P t : X -> X]]
+      }{[[D |-P fix t = t (fix t) : X]]}
+    \end{math}
+  \end{center}
+  By part one we know there is a morphism:
+  \[ \interp{[[D]]} \mto^{\interp{t}} \interp{[[X]]} \to \interp{[[X]]} \]
+  of $\cat{P}$.  In addition, since any $\cat{P}$-model contains
+  fixpoints we know there exists a morphism:
+  \[
+  (\interp{[[X]]} \to \interp{[[X]]}) \mto^{[[fix]]_{\interp{[[X]]}}} \interp{[[X]]}
+  \]
+  The interpretation of $[[D |-P fix : (X -> X) -> X]]$ is as follows:
+  \[
+  \interp{[[D]]} \mto^{\interp{[[D |-P fix : (X -> X) -> X]]} = \cur{\pi_2;[[fix]]_{\interp{[[X]]}}}} (\interp{[[X]]} \to \interp{[[X]]}) \to \interp{[[X]]}
+  \]
+  We obtain our result by the following equational reasoning:
+  \[
+  \scriptsize
+  \begin{array}{lllll}
+    \interp{[[D |-P fix t : X]]}\\
+    \,\,\,\,\,\,= \langle \cur{\pi_2;[[fix]]_{\interp{[[X]]}}}, \interp{[[t]]} \rangle;\app_{\interp{[[X]]} \to \interp{[[X]]},\interp{[[X]]}}   & \text{(Definition)}\\
+    \,\,\,\,\,\,= \interp{[[t]]};[[fix]]_{\interp{[[X]]}} & \text{($[[fix]]$-equality)}\\
+    \,\,\,\,\,\,= \interp{[[t]]};\langle \id_{\interp{[[X]]} \to \interp{[[X]]}}, [[fix]]_{\interp{[[X]]}} \rangle;\app_{\interp{[[X]]},\interp{[[X]]}} & \text{(Fixpoint)}\\
+    \,\,\,\,\,\,= \langle \interp{[[t]]}, \interp{[[t]]};[[fix]]_{\interp{[[X]]}} \rangle;\app_{\interp{[[X]]},\interp{[[X]]}} & \text{(Cartesian)}\\
+    \,\,\,\,\,\,= \langle \interp{[[t]]}, \langle \cur{\pi_2;[[fix]]_{\interp{[[X]]}}},\interp{[[t]]} \rangle;\app_{\interp{[[X]]} \to \interp{[[X]]},\interp{[[X]]}} \rangle;\app_{\interp{[[X]]},\interp{[[X]]}} & \text{($[[fix]]$-equality)}\\
+    \,\,\,\,\,\,= \langle \interp{[[t]]}, \langle \interp{[[D |-P fix : (X -> X) -> X]]},\interp{[[t]]} \rangle;\app_{\interp{[[X]]} \to \interp{[[X]]},\interp{[[X]]}} \rangle;\app_{\interp{[[X]]},\interp{[[X]]}} & \text{(Definition)}\\
+    \,\,\,\,\,\,= \langle \interp{[[t]]}, \interp{[[D |-P fix t : X]]} \rangle;\app_{\interp{[[X]]},\interp{[[X]]}} & \text{(Definition)}\\
+    \,\,\,\,\,\,= \interp{[[D |-P t (fix t) : X]]} & \text{(Definition)}\\      
+  \end{array}
+  \]
+
+\item[] Case.\ \\ 
+  \begin{center}
+    \begin{math}
+      $$\mprset{flushleft}
+      \inferrule* [right=\ifrName{CaseB}] {
+        [[D |-P t1 : X && D, x : Nat |-P t2 : X]]
+      }{[[D |-P case 0 {0 -> t1, suc x -> t2} = t1 : X]]}
+    \end{math}
+  \end{center}
+  We have the following morphisms by part one:
+  \[
+  \begin{array}{c}
+    \interp{[[D]]} \mto^{\interp{[[t1]]}} \interp{[[X]]}\\
+    \\
+    \interp{[[D]]} \times [[Nat]] \mto^{\interp{[[t2]]}} \interp{[[X]]}
+  \end{array}
+  \]
+  Then by the definition of SNNO we know there exists an unique
+  morphism
+  \[ [[Y x Nat]] \mto^{\mathsf{case}_{\interp{[[X]]}}} \interp{[[X]]}\]
+  such that the following is one equation that holds:
+  \[
+  \begin{array}{lll}
+    (\id_{\interp{[[D]]}} \times \mathsf{z});\mathsf{case}_{\interp{[[X]]}} = \pi_1;\interp{[[t1]]}
+  \end{array}
+  \]
+  
+  We also have the following interpretation for any $\interp{[[D |-P t : Nat]]}$:
+  \[
+  \interp{[[case t {0 -> t1, suc x -> t2}]]} =
+  \langle \id_{\interp{[[D]]}}, \interp{[[t]]} \rangle;\mathsf{case}_{\interp{[[X]]}} : \interp{[[D]]} \to \interp{[[X]]}
+  \]
+  Thus, we obtain our desired equality because $\interp{[[D |-P 0 : Nat]]} = \t_{\interp{[[D]]}};\mathsf{z}$:
+  \[
+  \begin{array}{lll}
+    \langle \id_{\interp{[[D]]}}, \t_{\interp{[[D]]}};\mathsf{z} \rangle;\case_{\interp{[[X]]}}
+    & = & \langle \id_{\interp{[[D]]}}, \t_{\interp{[[D]]}} \rangle;(\id_{\interp{[[D]]}} \times \mathsf{z});\case_{\interp{[[X]]}}\\
+    & = & \langle \id_{\interp{[[D]]}}, \t_{\interp{[[D]]}} \rangle;\pi_1;\interp{[[t1]]}\\
+    & = & \interp{[[t1]]}.\\
+  \end{array}
+  \]
+\item[] Case.\ \\ 
+  \begin{center}
+    \begin{math}
+      $$\mprset{flushleft}
+      \inferrule* [right=\ifrName{CaseS}] {
+        [[D |-P n : Nat]]
+        \\\\
+            [[D |-P t1 : X && D, x : Nat |-P t2 : X]]
+      }{[[D |-P case (suc n) {0 -> t1, suc x -> t2} = [n/x]t2 : X]]}
+    \end{math}
+  \end{center}
+  We have the following morphisms by part one:
+  \[
+  \begin{array}{c}
+    \interp{[[D]]} \mto^{\interp{[[n]]}} [[Nat]]\\
+    \\
+    \interp{[[D]]} \mto^{\interp{[[t1]]}} \interp{[[X]]}\\
+    \\
+    \interp{[[D]]} \times [[Nat]] \mto^{\interp{[[t2]]}} \interp{[[X]]}
+  \end{array}
+  \]
+  Then by the definition of SNNO we know there exists an unique
+  morphism
+  \[ [[Y x Nat]] \mto^{\mathsf{case}_{\interp{[[X]]}}} \interp{[[X]]}\]
+  such that the following is one equation that holds:
+  \[
+  \begin{array}{lll}
+    (\id_{\interp{[[D]]}} \times \mathsf{suc});\mathsf{case}_{\interp{[[X]]}} = \interp{[[t2]]}
+  \end{array}
+  \]
+  
+  We also have the following interpretation for any $\interp{[[D |-P t : Nat]]}$:
+  \[
+  \interp{[[case t {0 -> t1, suc x -> t2}]]} =
+  \langle \id_{\interp{[[D]]}}, \interp{[[t]]} \rangle;\mathsf{case}_{\interp{[[X]]}} : \interp{[[D]]} \to \interp{[[X]]}
+  \]
+  We obtain our result because $\interp{[[D |-P suc n : Nat]]} = \interp{[[n]]};\mathsf{suc}$:
+  \[
+  \begin{array}{lll}
+    \langle \id_{\interp{[[D]]}}, \interp{[[n]]};\mathsf{suc} \rangle;\mathsf{case}_{\interp{[[X]]}}
+    &  = & \langle \id_{\interp{[[D]]}}, \interp{[[n]]} \rangle;(\id_{\interp{[[D]]}} \times \mathsf{suc});\mathsf{case}_{\interp{[[X]]}}\\
+    &  = & \langle \id_{\interp{[[D]]}}, \interp{[[n]]} \rangle;\interp{[[t2]]}.
+  \end{array}
+  \]
+\end{itemize}
+% subsection proof_of_soundness_(theorem~\ref{theorem:p-soundness}) (end)
+
+\subsection{Proof of Monadic Strength (Lemma~\ref{lemma:monadic-strength})}
+\label{subsec:proof_of_monadic_strength}
+The strength map is defined as follows:
+  \[
+  \begin{array}{lll}
+    \st{A,B} = (\eta_{A} \otimes \id_{TB});\m{A,B} : A \otimes TB \mto T(A \otimes B)\\    
+  \end{array}
+  \]
+  where $\m{A,B} : TA \otimes TB \mto T(A \otimes B)$ is the natural
+  transformation arising from the fact that $T$ is a monoidal
+  endofunctor on $\cat{C}$.
+
+  The first two diagrams are straightforward to prove using the
+  monoidal structure.  We give explicit proofs of the final two
+  diagrams.
+
+  \begin{itemize}
+  \item[] Case 1. Monadic Join and Strength:
+    \[
+    \bfig
+        \square|mmaa|/`->``->/<1200,500>[
+          A \otimes T^2 B``
+          T(A \otimes TB)`
+          T^2(A \otimes B);`
+          \st{A,TB}``
+          T\st{A,B}]
+        
+    \square(1200,0)|mmma|/``->`->/<1200,500>[`
+      A \otimes TB`
+      T^2(A \otimes B)`
+      T(A \otimes B);``
+      \st{A,B}`
+      \mu_{A \otimes B}]
+
+    \morphism(0,500)<2400,0>[
+      A \otimes T^2 B`
+      A \otimes TB;
+      \id_{A} \otimes \mu_B]
+    \efig
+    \]          
+    
+    The previous diagram commutes because the following diagram commutes:
+    \begin{center}
+      \rotatebox{90}{$
+        \bfig
+        \square|mmmm|/`->`->`/<3499,500>[
+          A \otimes T^2 B`
+          A \otimes TB`
+          TA \otimes T^2 B`
+          TA \otimes TB;`
+          \eta_A \otimes \id_{T^2B}`
+          \eta_A \otimes \id_{TB}`]
+
+        \square(0,-500)|amma|<1350,500>[
+          TA \otimes T^2 B`
+          T^2A \otimes T^2B`
+          T(A \otimes TB)`
+          T(TA \otimes TB);
+          T\eta_A \otimes \id_{T^2 B}`
+          \m{A,TB}`
+          \m{TA,TB}`
+          T(\eta_A \otimes \id_{TB})]
+
+        \dtriangle(2500,-500)|mma|/`->`->/<1000,500>[
+          TA \otimes TB`
+          T^2(A \otimes B)`
+          T(A \otimes B);`
+          \m{A,B}`
+          \mu_{A \otimes B}]
+
+        \morphism(1350,-500)<1151,0>[
+          T(TA \otimes TB)`
+          T^2(A \otimes B);
+          T\m{A,B}]
+
+        \morphism(1350,0)<2149,0>[
+          T^2A \otimes T^2B`
+          TA \otimes TB;
+          \mu_A \otimes \mu_B]
+
+        \morphism(0,500)<3499,0>[
+          A \otimes T^2 B`
+          A \otimes TB;
+          \id_A \otimes \mu_B]
+
+        \place(675,-250)[1]
+        \place(2350,-250)[2]
+        \place(1749.5,250)[3]
+        \efig
+        $}
+    \end{center}
+    Diagram 1 commutes by naturality of $\m{}$, diagram 2 commutes
+    because $T$ is a monoidal endofunctor, and diagram 3 commutes by
+    using both the monoidal structure of the monad, and the fact that
+    tensor is a functor.
+    
+  \item[] Case 2. Monadic Unit and Strength:
+    \[
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      A \otimes B`
+      A \otimes TB`
+      T(A \otimes B);
+      \id_A \otimes \eta_B`
+      \eta_{A \times B}`
+      \st{A,B}]    
+    \efig
+    \]
+    The previous diagram commutes because the following diagram
+    commutes:
+    \[
+    \bfig
+    \btriangle|mma|/->`->`<-/<1500,500>[
+      A \otimes B`
+      T(A \otimes B)`
+      TA \otimes TB;
+      \eta_{A \otimes B}`
+      \eta_A \otimes \eta_B`
+      \m{A,B}]
+    \qtriangle|amm|/ ->``->/<1500,500>[
+      A \otimes B`
+      A \otimes TB`
+      TA \otimes TB;
+      \id_A \otimes \eta_B``
+      \eta_A \otimes \id_{TB}]
+    \efig
+    \]
+    The lower triangle commutes because $\eta$ is a monoidal natural
+    transformation, and the upper triangle commutes, because tensor is
+    a functor.
+  \end{itemize}
+
+  
+% subsection proof_of_monadic_strength_(lemma~\ref{lemma:monadic-strength (end)
+% section proofs (end)
