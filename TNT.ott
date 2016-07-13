@@ -25,6 +25,8 @@ X, Y, Z :: 'PTypes_' ::=
   | X -> Y   ::   :: Fun
   | T A      ::   :: T
   {{tex \mathsf{T}\,[[A]] }}
+  | DA X     :: M :: TMonad
+  {{tex \dar\,[[X]] }}
   | ( X )    :: S :: Parens
   | h( X )   :: S :: HParens
   {{tex [[X]] }}
@@ -54,12 +56,12 @@ t :: 'Terms_' ::=
   {{tex \mathsf{T}\,[[t]] }}
   | derelict t  ::   :: DeRel
   {{tex \mathsf{derelict}\,[[t]] }}
-  | let D x = t in t' :: :: LetD
-  {{tex \mathsf{let}\,\mathsf{D}\,[[x]] = [[t]]\,\mathsf{in}\,[[t']] }}
-  | return      :: M :: Return
-  {{tex \mathsf{return} }}
-  | bind      :: M :: bind
-  {{tex \mathsf{bind} }}
+  | let T x = t in t' :: :: LetD
+  {{tex \mathsf{let}\,\mathsf{T}\,[[x]] = [[t]]\,\mathsf{in}\,[[t']] }}
+  | let x <- t1 in t2 :: M :: KlComp
+  {{tex \mathsf{let}\,[[x]] = [[t1]]\,\mathsf{in}\,[[t2]] }}
+  | return t      :: M :: Return
+  {{tex \mathsf{return}\,[[t]] }}  
   | ( t )       :: S :: Parens
   | h( t )      :: M :: HParens
   {{tex [[t]] }}
@@ -136,6 +138,11 @@ by
   G |-L t1 : A -> B
   ----------------- :: App
   G |-L t1 t2 : B
+
+  G;. |-P t : X
+  ---------------- :: D
+  G |-L D t : D X
+  
 
 defn
   G |-L t = t' : A ::  :: LogTypEq :: 'LEq_'
@@ -356,95 +363,59 @@ by
  D |-P t1 = t3 : X
 
 defn
-  D ; G |-L t : A ::  :: TNTLogTyp :: 'LT_'
-  {{tex [[D]];[[G]] \vdash_{\cat{L} } [[t]] : [[A]] }}
+  G ; D |-P t : X ::  :: TNTProgTyp :: 'PT_'
+  {{tex [[G]];[[D]] \vdash_{\cat{P} } [[t]] : [[X]] }}
 by
 
-  ------------------------- :: Ax
-  D;G1, x : A, G2 |-L x : A
+  --------------------------- :: Ax
+  G ; D1, x : X, D2 |-P x : X
 
-  -------------- :: True
-  D;G |-L * : True
+  ------------------ :: Unit
+  G ; D |-P * : True
 
-  D;G |-L t1 : A && D;G |-L t2 : B
-  -------------------------------- :: Prod
-  D;G |-L (t1, t2) : A x B
+  ----------------- :: Zero
+  G ; D |-P 0 : Nat
 
-  D;G |-L t : A x B
-  ------------------- :: Proj1
-  D;G |-L proj1 t : A
+  -------------------------- :: Suc
+  G ; D |-P suc : Nat -> Nat
 
-  D;G |-L t : A x B
-  -------------------- :: Proj2
-  D;G |-L proj2 t : B
+  ----------------------------- :: Fix
+  G ; D |-P fix : (X -> X) -> X
 
-  D;G, x : A |-L t : B
-  ----------------------- :: Fun
-  D;G |-L \x:A.t : A -> B
+  G ; D |-P t1 : X && G ; D |-P t2 : Y
+  ------------------------------------ :: Prod
+  G ; D |-P (t1, t2) : X x Y
 
-  D;G |-L t2 : A
-  D;G |-L t1 : A -> B
-  ------------------- :: App
-  D;G |-L t1 t2 : B
+  G ; D |-P t : X x Y
+  --------------------- :: Proj1
+  G ; D |-P proj1 t : X
 
-  D |-P t : X
-  ----------------- :: D
-  D;. |-L D t : D X
-
-  D |-P t : T A
-  ---------------------- :: T
-  D;. |-L derelict t : A
-
-  D;G |-L t : D X && D,x : X;G |-L t' : A
-  --------------------------------------- :: FElim
-  D;G |-L let D x = t in t' : A
-
-defn
-  D |-P t : X ::  :: TNTProgTyp :: 'PT_'
-  {{tex [[D]] \vdash_{\cat{P} } [[t]] : [[X]] }}
-by
- 
-  -------------------------- :: Ax
-  D1, x : X, D2 |-P x : X
-
-  ---------------- :: Unit
-  D |-P * : True
-
-  --------------- :: Zero
-  D |-P 0 : Nat
-
-  ------------------------ :: Suc
-  D |-P suc : Nat -> Nat
-
-  --------------------------- :: Fix
-  D |-P fix : (X -> X) -> X
-
-  D |-P t1 : X && D |-P t2 : Y
-  -------------------------------- :: Prod
-  D |-P (t1, t2) : X x Y
-
-  D |-P t : X x Y
-  ------------------- :: Proj1
-  D |-P proj1 t : X
-
-  D |-P t : X x Y
-  ------------------- :: Proj2
-  D |-P proj2 t : X
+  G ; D |-P t : X x Y
+  --------------------- :: Proj2
+  G ; D |-P proj2 t : X
   
-  D, x : X |-P t : Y
-  ----------------------- :: Fun
-  D |-P \x:X.t : X -> Y
+  G ; D, x : X |-P t : Y
+  ------------------------- :: Fun
+  G ; D |-P \x:X.t : X -> Y
 
-  D |-P t2 : X
-  D |-P t1 : X -> Y
-  ----------------- :: App
-  D |-P t1 t2 : Y
+  G ; D |-P t2 : X
+  G ; D |-P t1 : X -> Y
+  --------------------- :: App
+  G ; D |-P t1 t2 : Y
 
-  D |-P t : Nat
-  D |-P t1 : X && D, x : Nat |-P t2 : X
-  ----------------------------------------- :: Case
-  D |-P case t {0 -> t1, suc x -> t2} : X
+  G ; D |-P t : Nat
+  G ; D |-P t1 : X && G ; D, x : Nat |-P t2 : X
+  --------------------------------------------- :: Case
+  G ; D |-P case t {0 -> t1, suc x -> t2} : X
 
-  D;. |-L t : A
-  --------------- :: T
-  D |-P T t : T A
+  G |-L t : A
+  ------------------- :: T
+  G ; . |-P T t : T A
+
+  G ; D |-P t1 : T A && G, x : A ; D |-P t2 : X
+  --------------------------------------------- :: Te
+  G ; D |-P let T x = t1 in t2 : X
+
+  G |-L t : D X
+  ------------------------ :: De
+  G ; D |-P derelict t : X

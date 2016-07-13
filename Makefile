@@ -3,17 +3,29 @@ BIBTEX = bibtex
 OTT = ott
 OTT_FLAGS := -tex_wrap false -tex_show_meta true -picky_multiple_parses false
 SKIM = skim_revert.sh
+SKIMRevinPath := $(shell command -v $(SKIM) 2> /dev/null)
 
 all: pdf
   # This is for my private machine.  It forces my PDF reader to reload.
   # It should not run unless "skim_revert.sh" is in your PATH.
-  ifeq ($(SKIM), skim_revert.sh)
-	$(SKIM) $(CURDIR)/main.pdf
-	$(SKIM) $(CURDIR)/main.pdf
+  ifdef SKIMRevinPath	
+	@$(SKIM) main.pdf &>/dev/null
+	@$(SKIM) main.pdf &>/dev/null
+	@$(SKIM) main.pdf &>/dev/null
   endif
 
 ipad : all
 	cp main.pdf ~/Dropbox/AdjointProgDraft.pdf
+
+quick : main.tex main-output.tex Makefile
+	$(PDFLATEX) -jobname=main main-output.tex
+  # This is for my private machine.  It forces my PDF reader to reload.
+  # It should not run unless "skim_revert.sh" is in your PATH.
+  ifdef SKIMRevinPath	
+	@$(SKIM) main.pdf &>/dev/null
+	@$(SKIM) main.pdf &>/dev/null
+	@$(SKIM) main.pdf &>/dev/null
+  endif
 
 pdf : main.pdf
 

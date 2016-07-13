@@ -39,10 +39,11 @@
 \newcommand{\q}[1]{\mathsf{q}_{#1}}
 \newcommand{\limp}[0]{\multimap}
 
-\title{Adjoint Programming: Termination as an Effect}
+\title{TNT: A Dynamite Prespective of Termination/Non-Termination as Effects}
 
-\author{Harley Eades III\\
-  Augusta University}
+\author{Harley Eades III\\Computer Science\\Augusta University}
+
+\date{July 13, 2016}
 
 \begin{document}
 
@@ -54,17 +55,6 @@
 
 \section{Introduction}
 \label{sec:introduction}
-
-It is a well-known fact about adjunctions that they induce a
-monoad/comonad pair on some category.  Recently, adjunctions have been
-proposed as an elegant model for resources and effects \cite{??}.
-Even more recently, they have been proposed as a model of constructive
-modal logic.  However, is it worthwhile to adopt adjunctions directly
-into a programming language?  If they are adopted, then how do we
-program with them?  In this paper we construct a typed
-$\lambda$-calculus extended with an adjoint pair of functors with a
-focus on programming.  Instead of working in complete generality we
-instead focus on a single concrete, but interesting, example.
 
 The Trellys Project was a large scale project to develop a general
 purpose dependently type functional programming language \cite{??}.
@@ -83,26 +73,26 @@ property is called \textbf{freedom of speech}, because both fragments
 have the ability to talk about each other without sacrificing their
 integrity.
 
-The running example of this paper is to approach this problem from a
-categorical perspective. Suppose we have a cartesian closed category,
-$\cat{L}$, and a cartesian closed category with fixpoints, $\cat{P}$.
-It is well-known that $\cat{L}$ is a model of the simply-typed
+This paper approaches this problem from a categorical
+perspective. Suppose we have a cartesian closed category, $\cat{L}$,
+and a cartesian closed category with fixpoints, $\cat{P}$.  It is
+well-known that $\cat{L}$ is a model of the simply-typed
 $\lambda$-calculus \cite{?}, and $\cat{P}$ is a model of the
 simply-typed $\lambda$-calculus with the $[[Y]]$ combinator \cite{?}.
 The category $\cat{L}$ will model our logical fragment, and $\cat{P}$
 our programmatic fragment.
 
-Now suppose we have a symmetric monoidal adjunction $\cat{P} : D
-\dashv T : \cat{L}$. We can think of this adjunction as a translation
+Now suppose we have a symmetric monoidal adjunction $\cat{L} : T
+\dashv D : \cat{P}$. We can think of this adjunction as a translation
 between the two fragments.  It is a well-known fact about adjunctions
-that the functor $\uar = TD : \cat{P} \to \cat{P}$ is a monad, and the
-functor $\dar = DT : \cat{L} \to \cat{L}$ is a comonad.  The former
-treats non-termination as a comonadic effect allowing the logical
-fragment to take in non-terminating inputs, and the latter treats
-termination as a monadic effect allowing the programmatic fragment to
-restrict itself terminating programs.  Thus, we can see freedom of
-speech as an adjoint situation.  It can also be shown that we have a
-strong monad:
+that the functor $\uar = DT : \cat{L} \to \cat{L}$ is a monad, and the
+functor $\dar = TD : \cat{P} \to \cat{P}$ is a comonad.  The former
+treats non-termination as a monadic effect allowing the logical
+fragment to reason about non-terminating programs, and the latter
+treats termination as a comonadic effect allowing the programmatic
+fragment to restrict itself to terminating programs.  Thus, we can see
+freedom of speech as an adjoint situation.  It can also be shown that
+we have a strong monad:
 \[
 \bfig
 \morphism<1000,0>[A \times \uar B`\uar(A \times B);\mst{A,B}]
@@ -116,16 +106,19 @@ as Haskell where programmers by default program in potentially
 diverging setting.  However, to gain assurances it is often preferred
 to be able to pick and choose which programs one would want to be
 terminating, and have it enforced by the type checker.  A termination
-monad would allow the programmer to develop their program under the
-monad to insure termination.
+comonad would allow the programmer to develop their program under the
+comonad to insure termination.  Furthermore, a termination comonad
+supports a lighter weight verification where some properties of
+potentially diverging programs hold with the restriction that their
+inputs terminate.  \todo{Create example of this}
 
 We will construct typed $\lambda$-calculi corresponding to both
 $\cat{L}$ and $\cat{P}$ respectively.  Then we will bring these two
-calculi together through a syntactic adjunction.  Then we will
-consider various programmatic questions.  For example, every program
-of type $\dar X$ should terminate, but proofs of type $\uar A$ should
-be allowed to diverge.  In addition to these syntactic questions we
-discuss novel contributions of these adjoint categorical models.
+calculi together through a syntactic adjunction, and consider various
+programmatic questions.  For example, every program of type $\dar X$
+should terminate, but proofs of type $\uar A$ should be allowed to
+diverge.  In addition to these syntactic questions we discuss novel
+contributions of these adjoint categorical models.
 
 \section{The Fragments and Their Semantics}
 \label{sec:the_fragments_and_their_semantics}
@@ -142,7 +135,8 @@ will be presented using the style of Crole \cite{??}.
 \label{subsec:the_logical_fragment}
 
 The logical fragment is defined in Figure~\ref{fig:log-type-rel} and
-Figure~\ref{fig:log-eq}.
+Figure~\ref{fig:log-eq}.  It is the simply typed $\lambda$-calculus
+with pairs. 
 \begin{figure}
   \begin{mathpar}
     \scriptsize
@@ -327,11 +321,11 @@ natural numbers with their eliminator.
 \noindent This formalization of natural numbers is inspired by the
 definition of Scott Numerals \cite{??} where the notion of a case
 distinction is built into the encoding. We can think of $[[Y]]$ in the
-source object of $\case$ as the type additional inputs that will be
+source object of $\case$ as the type of additional inputs that will be
 passed to both $f$ and $g$, but we can think of $[[Nat]]$ in the
 source object of $\case$ as the type of the scrutiny.  Thus, since in
 the base case there is no predecessor, $f$, will not require the
-scrutiny, and so it is ignored.  
+scrutiny, and so it is ignored.
 
 One major difference between SNNOs and the more traditional natural
 number objects is that in the definition of the latter $g$ is defined
@@ -642,7 +636,8 @@ Symmetric monoidal functors can be seen as functors that essentially
 preserve the monoidal structure, and this kind of preservation can be
 given to other types of functors.  The following definition describes
 how symmetric monoidal functors can be modified to preserve the
-cartesian structure of a cartesian category.
+cartesian structure of a cartesian category.  To the knowledge of the
+author product functors are novel.
 
 \begin{definition}
   \label{def:prod-functor}
@@ -1117,7 +1112,30 @@ is part of the monoidal structure.
     \st{A,B} : A \otimes TB \mto T (A \otimes B)\\    
   \end{array}
   \]
-  Then the following diagrams must commute:
+  Furthermore, the following diagrams commute:
+  \[
+  \begin{array}{lll}
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      I \otimes TA`
+      T(I \otimes A)`
+      TA;
+      \st{I,A}`
+      \rho_A`
+      T\rho_A]
+    \efig
+    &
+    \bfig
+    \qtriangle|amm|<1000,500>[
+      A \otimes B`
+      A \otimes TB`
+      T(A \otimes B);
+      \id_A \otimes \eta_B`
+      \eta_{A \times B}`
+      \st{A,B}]    
+    \efig       
+  \end{array}
+  \]
   \[
   \begin{array}{cccccccccc}
     \bfig
@@ -1139,54 +1157,30 @@ is part of the monoidal structure.
       (A \otimes B) \otimes TC`
       T((A \otimes B) \otimes C);
       \st{A \otimes B,C}]
-    \efig\\
-    \\
+    \efig        
+    \\\\
     \bfig
-    \qtriangle|amm|<1000,500>[
-      I \otimes TA`
-      T(I \otimes A)`
-      TA;
-      \st{I,A}`
-      \rho_A`
-      T\rho_A]
-    \efig
-  \end{array}
-  \]
-  In addition, the following diagrams must also commute:
-  \begin{center}
-    \begin{mathpar}
-      \bfig
-        \square|mmaa|/`->``->/<1200,500>[
-          A \otimes T^2 B``
-          T(A \otimes TB)`
-          T^2(A \otimes B);`
-          \st{A,TB}``
-          T\st{A,B}]
-        
-        \square(1000,0)|mmma|/``->`->/<1000,500>[`
+    \square|mmaa|/`->``->/<1000,500>[
+      A \otimes T^2 B``
+      T(A \otimes TB)`
+      T^2(A \otimes B);`
+      \st{A,TB}``
+      T\st{A,B}]
+    
+    \square(1000,0)|mmma|/``->`->/<1000,500>[`
       A \otimes TB`
       T^2(A \otimes B)`
       T(A \otimes B);``
       \st{A,B}`
       \mu_{A \otimes B}]
 
-    \morphism(-400,500)<2200,0>[
+    \morphism(0,500)<2000,0>[
       A \otimes T^2 B`
       A \otimes TB;
       \id_{A} \otimes \mu_B]
-    \efig
-    \and
-    \bfig
-    \qtriangle|amm|<1000,500>[
-      A \otimes B`
-      A \otimes TB`
-      T(A \otimes B);
-      \id_A \otimes \eta_B`
-      \eta_{A \times B}`
-      \st{A,B}]    
-    \efig
-    \end{mathpar}
-  \end{center}
+    \efig        
+  \end{array}
+  \]
 \end{lemma}
 \begin{proof}
 The strength map is defined as follows:
@@ -1219,34 +1213,34 @@ theory we will be programming in.
 \begin{definition}
   \label{def:TNT-model}
   A \textbf{termination/non-termination adjoint model (TNT model)} is
-  a symmetric monoidal adjunction $\cat{P} : D \vdash T : \cat{L}$
+  a symmetric monoidal adjunction $\cat{L} : T \vdash D : \cat{P}$
   between a $\cat{P}$-model, $\cat{P}$, and a cartesian closed
   category $\cat{L}$.  Thus, we know the following:
   \begin{itemize}
   \item[i.] $\cat{P}$ is a cartesian closed category with fixpoints and a SNNO,
   \item[ii.] $(D,\m{})$ and $(T, \n{})$ are product functors,
   \item[iii.] $\uar = DT : \cat{L} \to \cat{L}$ is a symmetric monoidal
-    comonad, and
+    monad, and
   \item[iv.] $\dar = TD : \cat{P} \to \cat{P}$ is a symmetric monoidal
-    monad.
+    comonad.
   \end{itemize}
 \end{definition}
 
 In this model, the monad and comonad have some nice properties.  First,
-by Lemma~\ref{lemma:monadic-strength}, we know $\dar : \cat{P} \to
-\cat{P}$ is strong, and hence, there is a natural transformation:
+by Lemma~\ref{lemma:monadic-strength}, we know $\uar : \cat{L} \to
+\cat{L}$ is strong, and hence, there is a natural transformation:
 \[
-\st{A,B} : A \times \dar B \mto \dar (A \times B)
+\st{A,B} : A \times \uar B \mto \uar (A \times B)
 \]
-In addition, due to $\dar : \cat{P} \to \cat{P}$ and $\uar : \cat{L}
-\to \cat{L}$ being defined as the composition of two product functors
+In addition, due to $\uar : \cat{L} \to \cat{L}$ and $\dar : \cat{P}
+\to \cat{P}$ being defined as the composition of two product functors
 we know they themselves are product functors, and hence, we have the
 following natural isomorphisms:
 \[
 \begin{array}{lll}
-  \dar A \times \dar B \cong \dar (A \times B)\\
-  \\
   \uar A \times \uar B \cong \uar (A \times B)\\
+  \\
+  \dar A \times \dar B \cong \dar (A \times B)\\
 \end{array}
 \]
 % subsection tnt_model (end)
@@ -1255,49 +1249,9 @@ following natural isomorphisms:
 
 \section{TNT Calculus}
 \label{sec:tnt_calculus}
-The \textbf{termination/non-termination (TNT) calculus} is based on
-Benton's LNL logic \cite{??}, and is defined by an giving an extension
-of both the logical fragment and the programmatic fragment.  The
-sequents of both fragments will now have the following form:
-\[
-\begin{array}{lll}
-  [[D;G |-L t : A]]\\
-  [[D |-P t : X]]\\
-\end{array}
-\]
 
-The typing rules for both fragments consist of the original rules from
-Figure~\ref{fig:log-type-rel} and Figure~\ref{fig:prog-typing-rel},
-where the contexts have been extended to the new form, and some new
-rules relating the two fragments using the adjoint functors $T$ and
-$D$. The logical fragment is extended with the following three rules:
-\begin{mathpar}
-  \TNTdruleLTXXD{} \and
-  \TNTdruleLTXXT{} \and
-  \TNTdruleLTXXFElim{}
-\end{mathpar}
-\noindent
-Similarly, the programmatic fragment is extended with the following
-rule:
-\begin{mathpar}
-  \TNTdrulePTXXT{}
-\end{mathpar}
 
-\subsection{The Termination Monad}
-\label{subsec:the_termination_monad}
-Wadler showed \cite{?} that monadic programming is feasible when the
-programming language incorporates the monadic unit and Kleisli
-composition as programs.  So we must derive these in the TNT calculus
-first.  These derivations are not new and are due to Wadler and Benton
-\cite{?}.
 
-The monadic unit, or what we will call $\mathsf{return}$, is defined by
-\[ [[return]] := [[\x:X.T D x]] : [[X -> T D X]].\]
-The Kleisli composition, or we well call $\mathsf{bind}$, is defined
-as follows:
-\[
-[[bind]] := ? : [[h(T D X) -> h((X -> T D Y) -> T D Y)]]
-\]
 % subsection the_termination_monad (end)
 % section tnt_calculus (end)
 

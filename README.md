@@ -1,5 +1,3 @@
-Adjoint Programming: Termination as an Effect
-=============================================
+TNT: A Dynamite Prespective of Termination/Non-Termination as Effects
+=====================================================================
 
-This is a note on using adjunctions to model effects in a typed
-functional programming language.  
